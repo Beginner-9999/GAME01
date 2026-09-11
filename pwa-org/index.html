@@ -2,21 +2,10 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>인생게임</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ff6fa5">
-<meta name="background-color" content="#ffe4ee">
-
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="인생게임">
-
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-
+<meta name="theme-color" content="#ffffff">
+<title>인생게임</title>
 <style>
   :root{
     --bg1:#ffe4ee; --bg2:#ffd1e3; --accent:#ff6fa5; --text:#7a2f49;
@@ -44,7 +33,7 @@
     min-height:100vh;
     display:flex;
     flex-direction:column;
-    padding:calc(14px + env(safe-area-inset-top)) 14px calc(90px + env(safe-area-inset-bottom));
+    padding:14px 14px 90px;
     position:relative;
   }
   .title{
@@ -467,7 +456,7 @@
 <body data-stage="0">
 <div class="wrap">
   <div class="title">인생게임</div>
-  <div class="subtitle">태어나서 죽을 때까지, 클릭으로 살아남기</div>
+  <div class="subtitle">인생을 미리 경험하는 게임</div>
 
   <div class="resource-bar">
     <div class="res-pill"><span class="ico">💰</span><span id="goldDisplay">0</span></div>
@@ -547,7 +536,6 @@
         <button class="buy-btn" id="submitRankBtn">등록</button>
       </div>
       <div class="rank-my-summary" id="rankMySummary"></div>
-      <div class="rank-local-note" id="rankLocalNote" style="display:none; font-size:10px; opacity:0.55; margin-top:6px;">⚠️ 이 앱은 서버가 연결되지 않아 이 기기 안에서만 기록이 보여요.</div>
     </div>
     <div class="rank-list-header">
       <span>순위</span><span>닉네임</span><span>RP</span><span>최고층</span>
@@ -573,37 +561,6 @@
 <script>
 (function(){
   "use strict";
-
-  // Claude 아티팩트 환경(window.storage)이 없으면 localStorage로 동작하는 폴백.
-  // 저장 형식(get/set/delete/list)은 동일하게 맞춰서 나머지 코드는 그대로 재사용한다.
-  const hasCloudStorage = (typeof window.storage !== 'undefined') && window.storage && typeof window.storage.get === 'function';
-  const AppStorage = hasCloudStorage ? window.storage : {
-    async get(key, shared){
-      const k = (shared ? 'shared:' : 'local:') + key;
-      const raw = localStorage.getItem(k);
-      if(raw === null){ throw new Error('키를 찾을 수 없습니다: ' + key); }
-      return { key, value: raw, shared: !!shared };
-    },
-    async set(key, value, shared){
-      const k = (shared ? 'shared:' : 'local:') + key;
-      localStorage.setItem(k, value);
-      return { key, value, shared: !!shared };
-    },
-    async delete(key, shared){
-      const k = (shared ? 'shared:' : 'local:') + key;
-      localStorage.removeItem(k);
-      return { key, deleted:true, shared: !!shared };
-    },
-    async list(prefix, shared){
-      const p = (shared ? 'shared:' : 'local:') + (prefix || '');
-      const keys = [];
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k && k.indexOf(p) === 0) keys.push(k.slice((shared?'shared:':'local:').length));
-      }
-      return { keys, prefix, shared: !!shared };
-    }
-  };
 
   // ---------- 데이터 ----------
   const TIERS = [
@@ -739,7 +696,6 @@
     rankMySummary: document.getElementById('rankMySummary'),
     rankList: document.getElementById('rankList'),
     rankEmptyNote: document.getElementById('rankEmptyNote'),
-    rankLocalNote: document.getElementById('rankLocalNote'),
     footerNote: document.getElementById('footerNote'),
   };
 
@@ -1087,7 +1043,7 @@
 
   async function fetchLeaderboard(){
     try{
-      const res = await AppStorage.get(LEADERBOARD_KEY, true);
+      const res = await window.storage.get(LEADERBOARD_KEY, true);
       if(res && res.value){
         return JSON.parse(res.value);
       }
@@ -1144,7 +1100,7 @@
       }
       list.sort((a,b)=> b.totalRp - a.totalRp);
       const trimmed = list.slice(0,50);
-      await AppStorage.set(LEADERBOARD_KEY, JSON.stringify(trimmed), true);
+      await window.storage.set(LEADERBOARD_KEY, JSON.stringify(trimmed), true);
       renderLeaderboard(trimmed);
       updateMySummary();
       save();
@@ -1173,14 +1129,14 @@
     const t = new Date();
     const hh = String(t.getHours()).padStart(2,'0');
     const mm = String(t.getMinutes()).padStart(2,'0');
-    el.footerNote.textContent = (hasCloudStorage ? '서버에 저장됨 · ' : '이 기기에 저장됨 · ') + hh + ':' + mm;
+    el.footerNote.textContent = '서버에 저장됨 · ' + hh + ':' + mm;
   }
   function save(){
     if(!storageAvailable) return;
     if(saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async ()=>{
       try{
-        await AppStorage.set('lifegame_save', JSON.stringify(state));
+        await window.storage.set('lifegame_save', JSON.stringify(state));
         flashSaved();
       }catch(e){
         storageAvailable = false;
@@ -1191,7 +1147,7 @@
   }
   async function load(){
     try{
-      const res = await AppStorage.get('lifegame_save');
+      const res = await window.storage.get('lifegame_save');
       if(res && res.value){
         const loaded = JSON.parse(res.value);
         state = Object.assign(state, loaded);
@@ -1200,8 +1156,11 @@
         state.rpUpg = Object.assign({ratk:0,ratkspeed:0,rmove:0,rcrit:0,rcritdmg:0}, loaded.rpUpg||{});
       }
     }catch(e){
-      // 저장된 데이터가 아직 없는 새 게임인 경우. AppStorage가 localStorage로 폴백되므로
-      // 이 앱(PWA/APK) 환경에서는 별도 경고 없이 새 게임으로 시작한다.
+      // 저장된 데이터 없음(새 게임) 또는 storage 자체를 쓸 수 없는 환경
+      if(typeof window.storage === 'undefined'){
+        storageAvailable = false;
+        showStorageWarning();
+      }
     }
     if(el.nicknameInput) el.nicknameInput.value = state.nickname || '';
   }
@@ -1213,7 +1172,6 @@
       state.monsterMaxHp = monsterHpFor(state.floor);
       state.monsterHp = state.monsterMaxHp;
     }
-    if(!hasCloudStorage && el.rankLocalNote) el.rankLocalNote.style.display = 'block';
     renderAll();
     lastTick = performance.now();
     requestAnimationFrame(tick);

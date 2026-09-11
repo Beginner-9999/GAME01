@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.netlify.endearing_croissant_82bdb0.twa",
+        "sha256_cert_fingerprints": ["67:C2:EA:D2:B9:5F:A7:A1:66:15:F3:FF:A8:E5:1E:5C:C1:4F:2F:24:A1:54:9B:83:D6:FC:D4:06:BF:81:C3:9D"]
+      }
+    }]

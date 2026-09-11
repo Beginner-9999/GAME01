@@ -2,89 +2,300 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>인생게임</title>
-    <!-- PWA 설정을 위한 manifest 연결 -->
     <link rel="manifest" href="manifest.json">
-    <!-- 모바일 주소창 색상 설정 -->
     <meta name="theme-color" content="#ffffff">
-    <!-- iOS(아이폰) 앱 설치 지원 설정 -->
+    
+    <!-- iOS 모바일 호환 설정 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="인생게임">
     
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f4f4f4; margin: 0; padding: 20px; user-select: none; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .status-box { background: #eee; padding: 10px; border-radius: 5px; margin: 10px 0; }
-        .monster { font-size: 80px; margin: 30px 0; cursor: pointer; transition: transform 0.1s; }
-        .monster:active { transform: scale(0.9); }
-        button { padding: 10px 20px; font-size: 16px; border: none; background: #007bff; color: white; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #0056b3; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; padding: 0; background-color: #f7f9fa; color: #333;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+        
+        .app-container { flex: 1; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; width: 100%; background: #ffffff; position: relative; overflow: hidden; }
+        .header { padding: 15px; text-align: center; border-bottom: 1px solid #eee; background: #fff; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: bold; }
+        .header p { margin: 5px 0 0 0; font-size: 12px; color: #666; }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; background: #f8f9fa; }
+        .stat-card { background: white; padding: 10px; border-radius: 8px; border: 1px solid #eef0f2; font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+        
+        .content-area { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        .stage-info { text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 16px; }
+        .warning-text { color: #ff3b30; font-size: 12px; text-align: center; margin: 10px 0; font-weight: 500; }
+        
+        .target-box { background: #fffdf7; border: 2px dashed #ffd60a; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0; }
+        .monster-sprite { font-size: 72px; margin: 15px 0; cursor: pointer; display: inline-block; transition: transform 0.05s ease; }
+        .monster-sprite:active { transform: scale(0.92); }
+        .hp-bar-container { background: #eee; border-radius: 10px; height: 12px; width: 80%; margin: 10px auto; overflow: hidden; }
+        .hp-bar { background: #ff453a; height: 100%; width: 100%; transition: width 0.05s ease; }
+        
+        .specs-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #555; background: #f1f3f5; padding: 10px; border-radius: 6px; }
+        
+        .tab-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: #ffffff; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .tab-btn { background: none; border: none; font-size: 12px; color: #8e8e93; cursor: pointer; display: flex; flex-direction: column; align-items: center; width: 20%; font-weight: 500; }
+        .tab-btn .icon { font-size: 20px; margin-bottom: 2px; }
+        .tab-btn.active { color: #007aff; font-weight: bold; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background: white; padding: 20px; border-radius: 12px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-btns button { flex: 1; padding: 10px; border-radius: 6px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn-cancel { background: #e5e5ea; color: #333; }
+        .btn-confirm { background: #ff3b30; color: white; }
     </style>
 </head>
 <body>
-    <div class="container">
+
+<div class="app-container">
+    <header class="header">
         <h1>인생게임</h1>
         <p>태어나서 죽을 때까지, 클릭으로 살아남기</p>
-        
-        <div class="status-box">
-            <div>💰 골드: <span id="gold">0</span></div>
-            <div>✨ RP: <span id="rp">0</span></div>
-            <div>👶 성장 단계: <strong>아기 (무럭무럭 자라는 중)</strong></div>
-            <div>階 층: 1</div>
+    </header>
+    
+    <div class="stats-grid">
+        <div class="stat-card"><span>💰 골드</span><strong id="display-gold">0</strong></div>
+        <div class="stat-card"><span>✨ RP</span><strong id="display-rp">0</strong></div>
+        <div class="stat-card" style="grid-column: span 2;">
+            <span>👶 성장 단계</span>
+            <strong><span id="display-tier">아기</span> (<span id="display-tier-desc">무럭무럭 자라는 중</span>)</strong>
         </div>
-
-        <div class="status-box">
-            <p>🍼 젖병 HP: <span id="hp">100</span> / 100</p>
-            <div class="monster" id="monster">🍼</div>
-        </div>
-
-        <div class="status-box">
-            <div>공격력: 0 | 공격속도: 0/초</div>
-            <div>크리확률: 0% | 크리데미지: 0%</div>
-            <p style="color: red; font-size: 13px;">⚠ 지금 공격력으로는 너무 오래 걸려요. 환생을 고려해보세요!</p>
-        </div>
-
-        <button onclick="rebirth()">환생하기</button>
     </div>
+    
+    <main class="content-area">
+        <!-- 1. 사냥 탭 -->
+        <section id="panel-hunt" class="panel active">
+            <div class="stage-info">층 <span id="display-floor">1</span></div>
+            <div class="warning-text">⚠ 지금 공격력으로는 너무 오래 걸려요. 환생을 고려해보세요!</div>
+            
+            <div class="target-box">
+                <div class="monster-sprite" id="target-monster">🍼</div>
+                <div><span id="display-target-name">젖병</span></div>
+                <div class="hp-bar-container">
+                    <div class="hp-bar" id="display-hp-bar"></div>
+                </div>
+                <div style="font-size: 13px; color:#666;"><span id="display-hp-text">100</span> / 100</div>
+            </div>
+            
+            <div class="specs-list">
+                <div>공격력 <strong id="spec-atk">10</strong></div>
+                <div>공격속도 <strong id="spec-as">1/초</strong></div>
+                <div>크리확률 <strong id="spec-crit-rate">5%</strong></div>
+                <div>크리데미지 <strong id="spec-crit-dmg">150%</strong></div>
+                <div>펫 초당피해 <strong id="spec-pet-dps">0</strong></div>
+                <div>등장속도 <strong id="spec-spawn-ms">1000ms</strong></div>
+            </div>
+            <p style="font-size: 11px; color:#999; text-align:center; margin-top:15px;">몬스터를 클릭해서 공격하세요. 자동 공격은 펫과 강화로 얻을 수 있어요.</p>
+        </section>
+        
+        <!-- 2. 강화 탭 -->
+        <section id="panel-upgrade" class="panel">
+            <h3>장비 및 신체 강화</h3>
+            <p style="color:#666; font-size:13px;">준비 중인 기능입니다. 골드를 사용하여 공격력을 높이세요.</p>
+        </section>
+        
+        <!-- 3. 펫 탭 -->
+        <section id="panel-pet" class="panel">
+            <h3>보조 펫 고용</h3>
+            <p style="color:#666; font-size:13px;">준비 중인 기능입니다. 초당 자동 데미지를 획득하세요.</p>
+        </section>
+        
+        <!-- 4. 환생 탭 -->
+        <section id="panel-rebirth" class="panel">
+            <h3>환생 시스템</h3>
+            <div style="background:#fff3cd; padding:15px; border-radius:8px; margin: 15px 0; font-size:13px; line-height:1.5;">
+                현재 환생 시 획득 가능 포인트: <strong style="color:#e65c00;" id="rebirth-point-gain">0</strong> RP<br><br>
+                환생하면 <strong>층수, 골드, 강화, 펫이 초기화</strong>되지만 환생 포인트로 구입한 영구 강화 스탯은 완벽히 유지됩니다.
+            </div>
+            <button onclick="openRebirthModal()" style="width:100%; padding:12px; background:#ff9500; color:white; border:none; border-radius:6px; font-weight:bold; font-size:15px;">환생하기</button>
+        </section>
+        
+        <!-- 5. 랭킹 탭 -->
+        <section id="panel-rank" class="panel">
+            <h3>실시간 명예의 전당</h3>
+            <div style="margin: 15px 0; display:flex; gap:5px;">
+                <input type="text" id="user-nickname" placeholder="닉네임 입력" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                <button onclick="registerNickname()" style="padding:8px 15px; background:#34c759; color:white; border:none; border-radius:4px; font-weight:bold;">등록</button>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+                <thead>
+                    <tr style="background:#f1f3f5; border-bottom:2px solid #ddd;"><th style="padding:8px;">순위</th><th>닉네임</th><th>RP</th><th>최고층</th></tr>
+                </thead>
+                <tbody id="rank-list-body">
+                    <tr><td colspan="4" style="padding:15px; text-align:center; color:#999;">데이터를 불러오는 중...</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:11px; color:#34c759; text-align:center; margin-top:20px;">⏱ 진행 상황은 기기에 자동으로 안전하게 저장됩니다.</p>
+        </section>
+    </main>
+    
+    <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('hunt', this)"><span class="icon">⚔</span><span>사냥</span></button>
+        <button class="tab-btn" onclick="switchTab('upgrade', this)"><span class="icon">💪</span><span>강화</span></button>
+        <button class="tab-btn" onclick="switchTab('pet', this)"><span class="icon">🐱</span><span>펫</span></button>
+        <button class="tab-btn" onclick="switchTab('rebirth', this)"><span class="icon">🔄</span><span>환생</span></button>
+        <button class="tab-btn" onclick="switchTab('rank', this)"><span class="icon">🏆</span><span>랭킹</span></button>
+    </nav>
+</div>
 
-    <script>
-        // PWA 서비스 워커 등록 스크립트
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => console.log('서비스 워커 등록 성공:', reg.scope))
-                    .catch(err => console.error('서비스 워커 등록 실패:', err));
-            });
+<div class="modal-overlay" id="rebirth-modal">
+    <div class="modal-box">
+        <h3 style="margin-top:0;">정말 환생할까요?</h3>
+        <p style="font-size:13px; color:#666; line-height:1.4;">지금 환생하시면 보유한 골드와 모든 임시 성장치가 초기화되고 새로운 생이 시작됩니다.</p>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeRebirthModal()">취소</button>
+            <button class="btn-confirm" onclick="executeRebirth()">환생하기</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 전역 상태 변수 선언 및 초기화 스펙 정정
+    let gameState = {
+        gold: 0, rp: 0, floor: 1, maxHp: 100, currentHp: 100,
+        atk: 10, critRate: 5, critDmg: 150, petDps: 0, spawnMs: 1000,
+        nickname: ""
+    };
+
+    if(localStorage.getItem('life_game_save')) {
+        try {
+            gameState = JSON.parse(localStorage.getItem('life_game_save'));
+        } catch(e) {
+            console.error("저장 데이터 로드 실패, 초기화 진행", e);
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('display-gold').innerText = gameState.gold;
+        document.getElementById('display-rp').innerText = gameState.rp;
+        document.getElementById('display-floor').innerText = gameState.floor;
+        document.getElementById('display-hp-text').innerText = gameState.currentHp;
+        
+        const hpPercent = Math.max(0, (gameState.currentHp / gameState.maxHp) * 100);
+        document.getElementById('display-hp-bar').style.width = hpPercent + '%';
+        
+        document.getElementById('spec-atk').innerText = gameState.atk;
+        document.getElementById('spec-crit-rate').innerText = gameState.critRate + "%";
+        document.getElementById('spec-crit-dmg').innerText = gameState.critDmg + "%";
+        document.getElementById('spec-pet-dps').innerText = gameState.petDps;
+        document.getElementById('spec-spawn-ms').innerText = gameState.spawnMs + "ms";
+        
+        // 성장 단계 동적 제어 규칙 보완
+        const tierEl = document.getElementById('display-tier');
+        const descEl = document.getElementById('display-tier-desc');
+        if (gameState.floor >= 20) {
+            tierEl.innerText = "어린이"; descEl.innerText = "학교에 다닐 준비 중";
+        } else {
+            tierEl.innerText = "아기"; descEl.innerText = "무럭무럭 자라는 중";
         }
 
-        // 간단한 클릭 이벤트 예시
-        let gold = 0;
-        let hp = 100;
-        const goldEl = document.getElementById('gold');
-        const hpEl = document.getElementById('hp');
-        const monsterEl = document.getElementById('monster');
+        if(gameState.nickname && document.getElementById('user-nickname')) {
+            document.getElementById('user-nickname').value = gameState.nickname;
+        }
+        
+        localStorage.setItem('life_game_save', JSON.stringify(gameState));
+    }
 
-        monsterEl.addEventListener('click', () => {
-            hp -= 10;
-            if (hp <= 0) {
-                hp = 100;
-                gold += 10;
-                goldEl.innerText = gold;
-            }
-            hpEl.innerText = hp;
+    function switchTab(tabId, targetBtn) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById('panel-' + tabId).classList.add('active');
+        targetBtn.classList.add('active');
+        
+        if(tabId === 'rank') { loadMockRankings(); }
+    }
+
+    // 모바일 터치 씹힘 현상 수정을 위해 click 이벤트 리스너 비정상 루프 정정
+    const monsterBtn = document.getElementById('target-monster');
+    monsterBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        let finalDamage = gameState.atk;
+        const isCrit = (Math.random() * 100) < gameState.critRate;
+        if(isCrit) { finalDamage = Math.round(finalDamage * (gameState.critDmg / 100)); }
+        
+        gameState.currentHp -= finalDamage;
+        
+        if(gameState.currentHp <= 0) {
+            gameState.gold += (gameState.floor * 5);
+            gameState.floor += 1;
+            gameState.maxHp = Math.round(100 * Math.pow(1.15, gameState.floor - 1));
+            gameState.currentHp = gameState.maxHp;
+            
+            // 몬스터 스프라이트 리셋 조건문 정정
+            const spriteEl = document.getElementById('target-monster');
+            const nameEl = document.getElementById('display-target-name');
+            if(gameState.floor >= 15) { spriteEl.innerText = "🧸"; nameEl.innerText = "토끼인형"; }
+            else if(gameState.floor >= 5) { spriteEl.innerText = "🍼"; nameEl.innerText = "고급젖병"; }
+            else { spriteEl.innerText = "🍼"; nameEl.innerText = "젖병"; }
+        }
+        updateUI();
+    });
+
+    function openRebirthModal() { 
+        document.getElementById('rebirth-point-gain').innerText = Math.floor(gameState.gold / 100);
+        document.getElementById('rebirth-modal').style.display = 'flex'; 
+    }
+    function closeRebirthModal() { document.getElementById('rebirth-modal').style.display = 'none'; }
+    
+    function executeRebirth() {
+        const gainRp = Math.floor(gameState.gold / 100);
+        gameState.rp += gainRp;
+        gameState.gold = 0;
+        gameState.floor = 1;
+        gameState.maxHp = 100;
+        gameState.currentHp = 100;
+        
+        closeRebirthModal();
+        
+        const spriteEl = document.getElementById('target-monster');
+        const nameEl = document.getElementById('display-target-name');
+        spriteEl.innerText = "🍼"; 
+        nameEl.innerText = "젖병";
+        
+        updateUI();
+        alert(gainRp + " RP를 획득하고 환생하셨습니다!");
+    }
+
+    function registerNickname() {
+        const name = document.getElementById('user-nickname').value.trim();
+        if(!name) return alert("닉네임을 입력하세요.");
+        gameState.nickname = name;
+        updateUI();
+        alert("닉네임 '" + name + "'(으)로 등록되었습니다.");
+        loadMockRankings();
+    }
+    
+    function loadMockRankings() {
+        const myName = gameState.nickname || "나 (미등록)";
+        const html = `
+            <tr style="color:#007aff; font-weight:bold;"><td>1</td><td>${myName}</td><td>${gameState.rp}</td><td>${gameState.floor}층</td></tr>
+            <tr><td>2</td><td>클릭마스터</td><td>520</td><td>142층</td></tr>
+            <tr><td>3</td><td>방구석게이머</td><td>120</td><td>55층</td></tr>
+        `;
+        document.getElementById('rank-list-body').innerHTML = html;
+    }
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(reg => console.log('SW 세팅 완료:', reg.scope))
+                .catch(err => console.error('SW 에러:', err));
         });
+    }
 
-        function rebirth() {
-            if(confirm("정말 환생할까요?\n층수, 골드, 강화, 펫이 초기화되지만 영구 강화는 유지돼요.")) {
-                gold = 0;
-                hp = 100;
-                goldEl.innerText = gold;
-                hpEl.innerText = hp;
-                alert("환생했습니다!");
-            }
-        }
-    </script>
+    updateUI();
+</script>
 </body>
 </html>

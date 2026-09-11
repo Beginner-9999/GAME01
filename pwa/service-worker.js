@@ -1,4 +1,4 @@
-const CACHE_NAME = 'life-game-v3';
+const CACHE_NAME = 'life-game-pwa-v1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -1,0 +1,17 @@
+git init 
+// 초기 설정 
+git add . 
+// 현재 폴더에 있는 모든 변경사항 추가
+git commit -m "원하는 메시지"
+// 변경사항 갱신
+git remote add origin "위에 빨간 네모 친 본인의 깃 url 주소"
+//내 저장소 <-> 깃허브 연결
+git push origin master
+// 갱신된내용 깃허브에 보내기
+
+git init 
+// 초기 설정
+git remote add origin "위에 빨간 네모 친 본인의 깃 url 주소"
+//내 저장소 <-> 깃허브 연결
+git pull origin master
+// 깃허브에서 받아오기

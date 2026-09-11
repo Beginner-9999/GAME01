@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1330">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>인생게임 - 클리커</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html, body {
+    width:100%; height:100%;
+    font-family:'Segoe UI','Malgun Gothic',sans-serif;
+    background:linear-gradient(160deg,#2b2140 0%,#1a1330 100%);
+    overflow:hidden;
+    color:#f2ecff;
+    overscroll-behavior:none;      /* iOS/안드로이드에서 당겨서 새로고침, 고무줄 스크롤 방지 */
+    touch-action:pan-y;            /* 기본은 세로 스크롤만 허용(상점 목록용), 핀치줌은 차단 */
+  }
+  #app {
+    position:relative;
+    width:100%;
+    height:100vh;
+    height:100dvh;                 /* 모바일 주소창 높이 변화에 대응하는 동적 뷰포트 단위 (지원 브라우저 우선 적용) */
+    max-width:480px;
+    margin:0 auto;
+    display:flex; flex-direction:column;
+    background:linear-gradient(180deg,#3a2a5c 0%, #201735 60%, #140e22 100%);
+    overflow:hidden;
+    box-shadow:0 0 40px rgba(0,0,0,0.6);
+    padding-top:env(safe-area-inset-top);       /* 노치/펀치홀 기기 안전영역 대응 */
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  /* ===================== 상단 헤더: 자원/스테이지 표시 ===================== */
+  #topBar {
+    padding:10px 14px 6px;
+    display:flex; flex-direction:column; gap:6px;
+    background:rgba(0,0,0,0.25);
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  #resourceRow {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px;
+  }
+  #resourceRow .res { display:flex; align-items:center; gap:4px; }
+  #goldDisp { color:#ffd76a; font-weight:bold; }
+  #rpDisp { color:#7ff0ff; font-weight:bold; }
+  #stageRow {
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13px; color:#cbb8ff;
+  }
+  #stageProgressBarWrap {
+    flex:1; height:8px; background:rgba(255,255,255,0.1); border-radius:6px;
+    margin:0 10px; overflow:hidden;
+  }
+  #stageProgressBar {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,#ff9de2,#ffd76a);
+    transition:width 0.25s ease;
+  }
+  #rebirthBtn {
+    font-size:11px; padding:6px 10px; border-radius:16px; border:1px solid rgba(255,255,255,0.3);
+    background:linear-gradient(135deg,#ff6f9c,#7d5fff);
+    color:#fff; font-weight:bold; cursor:pointer; white-space:nowrap;
+    touch-action:manipulation;
+  }
+  #rebirthBtn:active { transform:scale(0.94); }
+
+  /* ===================== 몬스터 표시 영역 ===================== */
+  #monsterArea {
+    position:relative;
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:10px;
+    min-height:0;
+  }
+  #stageEmojiBg {
+    position:absolute; top:8px; left:50%; transform:translateX(-50%);
+    font-size:13px; color:rgba(255,255,255,0.55);
+    display:flex; align-items:center; gap:6px;
+  }
+  #monsterEmoji {
+    font-size:88px;
+    cursor:pointer;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+    transition:transform 0.06s ease;
+    user-select:none;
+    touch-action:manipulation;   /* 더블탭 확대 방지 + 탭 반응 지연(300ms) 제거 */
+    -webkit-touch-callout:none;  /* iOS 롱프레스 시 메뉴/이미지 저장 팝업 방지 */
+  }
+  #monsterEmoji:active { transform:scale(0.9) rotate(-3deg); }
+  #monsterEmoji.shake { animation:shake 0.12s; }
+  @keyframes shake {
+    0%,100% { transform:translateX(0); }
+    25% { transform:translateX(-4px) rotate(-2deg); }
+    75% { transform:translateX(4px) rotate(2deg); }
+  }
+  #monsterName {
+    margin-top:8px; font-size:16px; font-weight:bold; color:#fff;
+    text-shadow:0 0 8px rgba(255,255,255,0.3);
+  }
+  #monsterHpWrap {
+    width:80%; max-width:260px; height:16px; margin-top:10px;
+    background:rgba(255,255,255,0.12); border-radius:10px; overflow:hidden;
+    border:1px solid rgba(255,255,255,0.2);
+  }
+  #monsterHpBar {
+    height:100%; width:100%;
+    background:linear-gradient(90deg,#ff5d7a,#ff9d4d);
+    transition:width 0.15s ease;
+  }
+  #monsterHpText { margin-top:4px; font-size:11px; color:#e8dcff; }
+  #spawnWaitText {
+    margin-top:10px; font-size:12px; color:#a99bd6;
+    height:14px;
+  }
+  .dmgPopup {
+    position:absolute;
+    font-weight:bold; font-size:16px; color:#fff9c4;
+    pointer-events:none;
+    text-shadow:0 0 4px rgba(0,0,0,0.6);
+    animation:floatUp 0.7s ease-out forwards;
+  }
+  .dmgPopup.crit { color:#ff5d7a; font-size:22px; }
+  @keyframes floatUp {
+    0% { transform:translateY(0); opacity:1; }
+    100% { transform:translateY(-50px); opacity:0; }
+  }
+
+  /* ===================== 스탯 요약 패널 ===================== */
+  #statsPanel {
+    display:flex; justify-content:space-around;
+    padding:8px 6px; font-size:10.5px; color:#cbb8ff;
+    background:rgba(0,0,0,0.2);
+    border-top:1px solid rgba(255,255,255,0.06);
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+  #statsPanel .stat { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  #statsPanel .stat b { color:#fff; font-size:12px; }
+
+  /* ===================== 하단 탭 & 상점 ===================== */
+  #tabBar { display:flex; background:rgba(0,0,0,0.3); }
+  .tabBtn {
+    flex:1; padding:10px 0; text-align:center; font-size:13px; font-weight:bold;
+    color:#a99bd6; cursor:pointer; border-bottom:3px solid transparent;
+    touch-action:manipulation;
+  }
+  .tabBtn.active { color:#fff; border-bottom-color:#ff9de2; background:rgba(255,255,255,0.04); }
+
+  #shopArea {
+    height:190px; overflow-y:auto;
+    padding:8px 10px 16px;
+    background:rgba(0,0,0,0.15);
+    -webkit-overflow-scrolling:touch;   /* iOS에서 부드러운 관성 스크롤 */
+    touch-action:pan-y;
+  }
+  .shopRow {
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:10px;
+    padding:8px 10px; margin-bottom:8px;
+  }
+  .shopRow .info { display:flex; align-items:center; gap:8px; }
+  .shopRow .icon { font-size:22px; width:28px; text-align:center; }
+  .shopRow .texts { display:flex; flex-direction:column; }
+  .shopRow .name { font-size:12.5px; font-weight:bold; color:#fff; }
+  .shopRow .desc { font-size:10.5px; color:#b7a8e0; }
+  .buyBtn {
+    padding:7px 12px; border-radius:14px; border:none; font-size:11px; font-weight:bold;
+    background:linear-gradient(135deg,#6fd0ff,#4fa3ff); color:#0b1220; cursor:pointer;
+    white-space:nowrap;
+    touch-action:manipulation;
+  }
+  .buyBtn:disabled { opacity:0.35; cursor:not-allowed; }
+  .buyBtn.perm { background:linear-gradient(135deg,#7ff0ff,#7d5fff); color:#0b1220; }
+
+  /* ===================== 공용 오버레이 (시작 / 환생확인 / 토스트) ===================== */
+  .overlay {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(5,3,12,0.92);
+    text-align:center; gap:14px; padding:24px; z-index:20;
+  }
+  .overlay h1 { font-size:30px; color:#ffd76a; text-shadow:0 0 16px rgba(255,215,106,0.5); }
+  .overlay h2 { font-size:20px; color:#ff9de2; }
+  .overlay p { color:#cbb8ff; max-width:340px; line-height:1.6; font-size:13.5px; }
+  .overlay .btn {
+    padding:12px 30px; border:none; border-radius:26px; font-size:15px; font-weight:bold;
+    background:linear-gradient(135deg,#ff6f9c,#7d5fff); color:#fff; cursor:pointer;
+    box-shadow:0 0 18px rgba(125,95,255,0.5);
+    touch-action:manipulation;
+  }
+  .overlay .btn.secondary {
+    background:rgba(255,255,255,0.08); color:#cbb8ff; box-shadow:none; border:1px solid rgba(255,255,255,0.2);
+  }
+  .btnRow { display:flex; gap:12px; }
+  .hidden { display:none !important; }
+
+  #toast {
+    position:absolute; top:80px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.75); color:#ffd76a; padding:8px 18px; border-radius:20px;
+    font-size:13px; font-weight:bold; z-index:15; opacity:0; pointer-events:none;
+    transition:opacity 0.3s ease, top 0.3s ease;
+  }
+  #toast.show { opacity:1; top:60px; }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.2); border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== 상단 자원/스테이지 바 ===================== -->
+  <div id="topBar">
+    <div id="resourceRow">
+      <div class="res">💰 <span id="goldDisp">0</span></div>
+      <div class="res">💎 환생포인트 <span id="rpDisp">0</span></div>
+    </div>
+    <div id="stageRow">
+      <span id="stageLabel">👶 아기 (Lv.1)</span>
+      <div id="stageProgressBarWrap"><div id="stageProgressBar"></div></div>
+      <button id="rebirthBtn">🔄 환생</button>
+    </div>
+  </div>
+
+  <!-- ===================== 몬스터(인생의 고난) 표시 & 클릭 영역 ===================== -->
+  <div id="monsterArea">
+    <div id="monsterEmoji">🍼</div>
+    <div id="monsterName">젖병</div>
+    <div id="monsterHpWrap"><div id="monsterHpBar"></div></div>
+    <div id="monsterHpText">10 / 10</div>
+    <div id="spawnWaitText"></div>
+  </div>
+
+  <!-- ===================== 현재 스탯 요약 ===================== -->
+  <div id="statsPanel">
+    <div class="stat">⚔ 공격력<b id="statAtk">0</b></div>
+    <div class="stat">🎯 크리확률<b id="statCritC">0%</b></div>
+    <div class="stat">💥 크리데미지<b id="statCritD">0%</b></div>
+    <div class="stat">⚡ 공속<b id="statSpd">0.0/s</b></div>
+    <div class="stat">🐾 펫DPS<b id="statPet">0</b></div>
+  </div>
+
+  <!-- ===================== 하단 탭 (아이템 / 펫 / 환생상점) ===================== -->
+  <div id="tabBar">
+    <div class="tabBtn active" data-tab="items">🛠 아이템</div>
+    <div class="tabBtn" data-tab="pets">🐾 펫</div>
+    <div class="tabBtn" data-tab="perm">💎 환생상점</div>
+  </div>
+  <div id="shopArea"></div>
+
+  <!-- ===================== 시작 화면 ===================== -->
+  <div id="startScreen" class="overlay">
+    <h1>인생게임</h1>
+    <p>
+      아기 → 소년 → 청년 → 성인 → 아저씨 → 할아버지까지,<br>
+      인생의 고난(몬스터)을 클릭해서 물리치는 클리커 게임입니다.<br><br>
+      몬스터를 잡으면 골드를 얻어 아이템/펫을 강화하고,<br>
+      더는 이길 수 없을 만큼 강해지면 <b>환생</b>해서<br>
+      영구적인 힘을 얻고 처음부터 다시 도전하세요!
+    </p>
+    <button class="btn" id="startBtn">인생 시작하기</button>
+  </div>
+
+  <!-- ===================== 환생 확인 모달 ===================== -->
+  <div id="rebirthModal" class="overlay hidden">
+    <h2>정말 환생하시겠습니까?</h2>
+    <p id="rebirthInfo"></p>
+    <div class="btnRow">
+      <button class="btn" id="rebirthConfirmBtn">환생하기</button>
+      <button class="btn secondary" id="rebirthCancelBtn">취소</button>
+    </div>
+  </div>
+
+  <!-- ===================== 토스트 알림 (스테이지 변화 등) ===================== -->
+  <div id="toast"></div>
+</div>
+
+<script>
+/* =====================================================================
+   모바일 전용 가드: 핀치줌 / 더블탭 확대 방지 (viewport 메타 태그를
+   무시하는 일부 브라우저 대비 이중 안전장치)
+   ===================================================================== */
+document.addEventListener('gesturestart', e => e.preventDefault());   // iOS Safari 핀치줌 제스처
+document.addEventListener('touchmove', e => {
+  if (e.touches.length > 1) e.preventDefault();                       // 두 손가락 터치(확대) 차단
+}, { passive: false });
+// 주의: 더블탭 확대 방지는 <meta viewport user-scalable=no>로 처리한다.
+// (빠른 연속 탭이 핵심 조작인 클리커 게임 특성상, touchend를 가로막는
+//  별도 JS 더블탭 방지 로직은 넣지 않는다 — 클릭 반응이 막힐 수 있음)
+
+/* =====================================================================
+   0. 기본 설정: 인생 스테이지(6단계)와 각 스테이지별 몬스터(고난) 목록
+   ===================================================================== */
+const LEVELS_PER_STAGE = 15;   // 한 스테이지가 몇 레벨동안 지속되는지
+
+const STAGES = [
+  { name:'아기',    emoji:'👶', monsters:[ ['젖병','🍼'], ['기저귀','🧷'], ['공갈젖꼭지','😗'] ] },
+  { name:'소년',    emoji:'🧒', monsters:[ ['책','📚'], ['친구','🧑‍🤝‍🧑'], ['운동','⚽'] ] },
+  { name:'청년',    emoji:'🧑', monsters:[ ['술','🍺'], ['미인','💃'], ['과제','📝'], ['취업','💼'] ] },
+  { name:'성인',    emoji:'👨‍💼', monsters:[ ['일','💻'], ['상사','👔'], ['연봉협상','💰'] ] },
+  { name:'아저씨',  emoji:'👨', monsters:[ ['잔소리','🗣️'], ['육아','🍼'], ['대출이자','💳'], ['명절노동','🍚'] ] },
+  { name:'할아버지', emoji:'👴', monsters:[ ['장기','♟️'], ['바둑','⚫'], ['노인정','🏠'] ] },
+];
+
+function getStageIndex(level) {
+  return Math.min(STAGES.length - 1, Math.floor((level - 1) / LEVELS_PER_STAGE));
+}
+// 레벨과 스테이지 내 순환 인덱스를 이용해 몬스터 이름/이모지/티어를 결정
+function getMonsterInfo(level) {
+  const stageIdx = getStageIndex(level);
+  const pool = STAGES[stageIdx].monsters;
+  const posInStage = (level - 1) % LEVELS_PER_STAGE;   // 스테이지 내에서 몇 번째 레벨인지
+  const [name, emoji] = pool[posInStage % pool.length];
+  const tier = Math.floor(posInStage / pool.length) + 1; // 같은 이름이 반복될 때마다 티어 상승
+  return { stageIdx, name, emoji, tier, label: tier > 1 ? `${name} Lv.${tier}` : name };
+}
+
+/* =====================================================================
+   1. 아이템 / 펫 / 영구강화(환생상점) 정의
+   - base/growth로 구매할 때마다 비용이 지수적으로 증가
+   - effect: 레벨당 증가하는 효과량 (recalcStats에서 실제 사용)
+   ===================================================================== */
+const ITEM_DEFS = {
+  atk:   { name:'공격력 강화',   icon:'⚔', base:10, growth:1.15, effect:2,  unit:'', desc:lv=>`클릭 공격력 +${lv*2}` },
+  spd:   { name:'공격 속도 강화', icon:'⚡', base:30, growth:1.17, effect:40, unit:'ms', desc:lv=>`공격 간격 -${lv*40}ms` },
+  critC: { name:'크리티컬 확률', icon:'🎯', base:50, growth:1.20, effect:1.5,unit:'%', desc:lv=>`크리 확률 +${(lv*1.5).toFixed(1)}%` },
+  critD: { name:'크리티컬 데미지',icon:'💥', base:45, growth:1.18, effect:10, unit:'%', desc:lv=>`크리 데미지 +${lv*10}%` },
+};
+
+const PET_DEFS = {
+  dog:    { name:'강아지', icon:'🐶', base:80,  growth:1.20, dps:2  },
+  cat:    { name:'고양이', icon:'🐱', base:200, growth:1.22, dps:5  },
+  dragon: { name:'아기 드래곤', icon:'🐲', base:600, growth:1.25, dps:15 },
+};
+
+const PERM_DEFS = {
+  atk:   { name:'영구 공격력',   icon:'⚔', base:5,  growth:1.30, effect:3,  desc:lv=>`공격력 +${lv*3} (영구)` },
+  spd:   { name:'영구 공격속도', icon:'⚡', base:8,  growth:1.30, effect:25, desc:lv=>`공격 간격 -${lv*25}ms (영구)` },
+  move:  { name:'영구 이동속도', icon:'🏃', base:6,  growth:1.30, effect:40, desc:lv=>`다음 몬스터 대기시간 -${lv*40}ms (영구)` },
+  critC: { name:'영구 크리확률', icon:'🎯', base:10, growth:1.35, effect:1,  desc:lv=>`크리 확률 +${lv}% (영구)` },
+  critD: { name:'영구 크리데미지',icon:'💥', base:10, growth:1.32, effect:15, desc:lv=>`크리 데미지 +${lv*15}% (영구)` },
+};
+
+/* =====================================================================
+   2. 게임 상태
+   ===================================================================== */
+let state = null;
+let autoAttackTimerId = null;
+let petTimerId = null;
+let currentTab = 'items';
+
+function newGameState() {
+  return {
+    level: 1,
+    gold: 0,
+    rebirthPoints: 0,
+    rebirthCount: 0,
+    item: { atk:0, spd:0, critC:0, critD:0 },
+    pet:  { dog:0, cat:0, dragon:0 },
+    perm: { atk:0, spd:0, move:0, critC:0, critD:0 },
+    monster: null,        // { name, emoji, hp, maxHp, goldReward }
+    isBetweenMonsters: false,
+    stats: null,
+  };
+}
+
+/* =====================================================================
+   3. 수치 계산 (성장 공식)
+   ===================================================================== */
+function monsterMaxHp(level) {
+  return Math.max(1, Math.round(15 * Math.pow(1.15, level - 1)));
+}
+function monsterGoldReward(level) {
+  return Math.max(1, Math.round(4 * Math.pow(1.12, level - 1)));
+}
+function costOf(defs, id, level) {
+  const d = defs[id];
+  return Math.ceil(d.base * Math.pow(d.growth, level));
+}
+
+// 아이템/영구강화/펫 레벨들을 조합해 "현재 실제로 적용되는 스탯"을 계산
+function recalcStats() {
+  const atk = 5 + state.perm.atk * PERM_DEFS.atk.effect + state.item.atk * ITEM_DEFS.atk.effect;
+
+  let critChance = 5 + state.perm.critC * PERM_DEFS.critC.effect + state.item.critC * ITEM_DEFS.critC.effect;
+  critChance = Math.min(80, critChance);
+
+  const critDamage = 150 + state.perm.critD * PERM_DEFS.critD.effect + state.item.critD * ITEM_DEFS.critD.effect;
+
+  let atkInterval = 1500 - state.perm.spd * PERM_DEFS.spd.effect - state.item.spd * ITEM_DEFS.spd.effect;
+  atkInterval = Math.max(150, atkInterval);
+
+  let spawnDelay = 600 - state.perm.move * PERM_DEFS.move.effect;
+  spawnDelay = Math.max(50, spawnDelay);
+
+  const petDps = state.pet.dog * PET_DEFS.dog.dps
+               + state.pet.cat * PET_DEFS.cat.dps
+               + state.pet.dragon * PET_DEFS.dragon.dps;
+
+  state.stats = { atk, critChance, critDamage, atkInterval, spawnDelay, petDps };
+}
+
+// 큰 숫자를 K/M/B/T 단위로 축약 표시 (게임이 진행될수록 숫자가 커지므로 필수)
+function formatNum(n) {
+  if (n < 1000) return Math.floor(n).toString();
+  const units = ['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
+  let idx = -1;
+  while (n >= 1000 && idx < units.length - 1) { n /= 1000; idx++; }
+  return n.toFixed(2) + units[idx];
+}
+
+/* =====================================================================
+   4. 몬스터 스폰 / 처치 처리
+   ===================================================================== */
+function spawnMonster() {
+  const info = getMonsterInfo(state.level);
+  const maxHp = monsterMaxHp(state.level);
+  state.monster = {
+    name: info.label,
+    emoji: info.emoji,
+    hp: maxHp,
+    maxHp,
+    goldReward: monsterGoldReward(state.level),
+    stageIdx: info.stageIdx,
+  };
+  state.isBetweenMonsters = false;
+  renderMonster();
+  renderTopBar();
+}
+
+function killMonster() {
+  const prevStageIdx = getStageIndex(state.level);
+  state.gold += state.monster.goldReward;
+  state.level++;
+  const newStageIdx = getStageIndex(state.level);
+
+  if (newStageIdx !== prevStageIdx) {
+    showToast(`${STAGES[newStageIdx].emoji} ${STAGES[newStageIdx].name}(으)로 성장했습니다!`);
+  }
+
+  state.monster = null;
+  state.isBetweenMonsters = true;
+  renderTopBar();
+  renderShop();       // 골드가 늘었으니 구매 가능 여부 갱신
+  document.getElementById('spawnWaitText').textContent = '다음 고난이 다가오는 중...';
+
+  setTimeout(() => {
+    if (!state.isBetweenMonsters) return;   // 그 사이에 환생 등으로 상태가 바뀐 경우 방지
+    document.getElementById('spawnWaitText').textContent = '';
+    spawnMonster();
+  }, state.stats.spawnDelay);
+}
+
+/* =====================================================================
+   5. 전투 처리 (수동 클릭 + 자동 공격 + 펫 DPS)
+   ===================================================================== */
+function computeHit(power) {
+  const isCrit = Math.random() * 100 < state.stats.critChance;
+  const dmg = isCrit ? Math.round(power * (state.stats.critDamage / 100)) : Math.round(power);
+  return { dmg, isCrit };
+}
+
+function applyDamage(dmg, isCrit, evt) {
+  if (!state.monster || state.isBetweenMonsters) return;
+  state.monster.hp -= dmg;
+  showDamagePopup(dmg, isCrit, evt);
+  updateMonsterHpBar();
+
+  const emojiEl = document.getElementById('monsterEmoji');
+  emojiEl.classList.remove('shake');
+  void emojiEl.offsetWidth;      // 리플로우를 강제해 shake 애니메이션을 재시작
+  emojiEl.classList.add('shake');
+
+  if (state.monster.hp <= 0) {
+    killMonster();
+  }
+}
+
+// 플레이어가 직접 클릭했을 때 (수동 공격)
+function onMonsterClick(evt) {
+  if (!state.monster || state.isBetweenMonsters) return;
+  const { dmg, isCrit } = computeHit(state.stats.atk);
+  applyDamage(dmg, isCrit, evt);
+}
+
+// 공격속도 스탯에 따라 자동으로 실행되는 공격 (수동 클릭 없이도 진행되는 "방치형" 요소)
+function performAutoAttack() {
+  if (!state.monster || state.isBetweenMonsters) return;
+  const { dmg, isCrit } = computeHit(state.stats.atk);
+  applyDamage(dmg, isCrit, null);
+}
+
+// 공격 속도가 바뀔 때마다(아이템/영구강화 구매, 환생) 타이머를 새로 세팅
+function resetAutoAttackTimer() {
+  if (autoAttackTimerId) clearInterval(autoAttackTimerId);
+  autoAttackTimerId = setInterval(performAutoAttack, state.stats.atkInterval);
+}
+
+// 펫은 매 200ms마다 (dps * 0.2)만큼 지속 데미지를 준다 (일정한 틱 기반 방치 데미지)
+function startPetTimer() {
+  if (petTimerId) clearInterval(petTimerId);
+  petTimerId = setInterval(() => {
+    if (!state.monster || state.isBetweenMonsters || state.stats.petDps <= 0) return;
+    const dmg = state.stats.petDps * 0.2;
+    state.monster.hp -= dmg;
+    updateMonsterHpBar();
+    if (state.monster.hp <= 0) killMonster();
+  }, 200);
+}
+
+/* =====================================================================
+   6. 구매 로직 (아이템 / 펫 / 영구강화)
+   ===================================================================== */
+function buyItem(id) {
+  const level = state.item[id];
+  const cost = costOf(ITEM_DEFS, id, level);
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  state.item[id]++;
+  recalcStats();
+  resetAutoAttackTimer();
+  renderTopBar(); renderStatsPanel(); renderShop();
+}
+
+function buyPet(id) {
+  const level = state.pet[id];
+  const cost = costOf(PET_DEFS, id, level);
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  state.pet[id]++;
+  recalcStats();
+  renderTopBar(); renderStatsPanel(); renderShop();
+}
+
+function buyPerm(id) {
+  const level = state.perm[id];
+  const cost = costOf(PERM_DEFS, id, level);
+  if (state.rebirthPoints < cost) return;
+  state.rebirthPoints -= cost;
+  state.perm[id]++;
+  recalcStats();
+  resetAutoAttackTimer();
+  renderTopBar(); renderStatsPanel(); renderShop();
+}
+
+/* =====================================================================
+   7. 환생(리버스) 시스템
+   - 레벨/골드/아이템/펫은 초기화되지만, 영구강화(perm)와 환생 포인트는 유지된다.
+   - 획득 환생 포인트는 도달한 레벨이 높을수록 더 많이 지급된다.
+   ===================================================================== */
+function calcRebirthGain() {
+  return Math.max(1, Math.floor(Math.pow(state.level, 0.6)));
+}
+
+function openRebirthModal() {
+  const gain = calcRebirthGain();
+  document.getElementById('rebirthInfo').innerHTML =
+    `현재 레벨: <b>${state.level}</b><br>` +
+    `환생 시 레벨/골드/아이템/펫이 초기화되지만,<br>` +
+    `<b style="color:#7ff0ff">환생 포인트 +${gain}</b>을 얻어<br>` +
+    `영구 강화에 사용할 수 있습니다.`;
+  document.getElementById('rebirthModal').classList.remove('hidden');
+}
+
+function doRebirth() {
+  const gain = calcRebirthGain();
+  state.rebirthPoints += gain;
+  state.rebirthCount++;
+
+  // 레벨/골드/런타임(아이템,펫) 자원만 초기화. perm 강화치는 유지됨.
+  state.level = 1;
+  state.gold = 0;
+  state.item = { atk:0, spd:0, critC:0, critD:0 };
+  state.pet  = { dog:0, cat:0, dragon:0 };
+
+  recalcStats();
+  resetAutoAttackTimer();
+
+  document.getElementById('rebirthModal').classList.add('hidden');
+  showToast(`환생 완료! 환생 포인트 +${gain}`);
+
+  spawnMonster();
+  renderTopBar(); renderStatsPanel(); renderShop();
+}
+
+/* =====================================================================
+   8. 렌더링 함수 모음
+   ===================================================================== */
+function renderTopBar() {
+  document.getElementById('goldDisp').textContent = formatNum(state.gold);
+  document.getElementById('rpDisp').textContent = formatNum(state.rebirthPoints);
+
+  const stageIdx = getStageIndex(state.level);
+  const stage = STAGES[stageIdx];
+  document.getElementById('stageLabel').textContent = `${stage.emoji} ${stage.name} (Lv.${state.level})`;
+
+  const posInStage = (state.level - 1) % LEVELS_PER_STAGE;
+  const pct = stageIdx === STAGES.length - 1
+    ? 100                                            // 마지막 스테이지(할아버지)는 계속 가득 찬 상태로 표시
+    : (posInStage / LEVELS_PER_STAGE) * 100;
+  document.getElementById('stageProgressBar').style.width = pct + '%';
+}
+
+function renderMonster() {
+  if (!state.monster) return;
+  document.getElementById('monsterEmoji').textContent = state.monster.emoji;
+  document.getElementById('monsterName').textContent = state.monster.name;
+  updateMonsterHpBar();
+}
+
+function updateMonsterHpBar() {
+  if (!state.monster) return;
+  const pct = Math.max(0, (state.monster.hp / state.monster.maxHp) * 100);
+  document.getElementById('monsterHpBar').style.width = pct + '%';
+  document.getElementById('monsterHpText').textContent =
+    `${formatNum(Math.max(0, state.monster.hp))} / ${formatNum(state.monster.maxHp)}`;
+}
+
+function renderStatsPanel() {
+  const s = state.stats;
+  document.getElementById('statAtk').textContent = formatNum(s.atk);
+  document.getElementById('statCritC').textContent = s.critChance.toFixed(1) + '%';
+  document.getElementById('statCritD').textContent = Math.round(s.critDamage) + '%';
+  document.getElementById('statSpd').textContent = (1000 / s.atkInterval).toFixed(2) + '/s';
+  document.getElementById('statPet').textContent = formatNum(s.petDps) + '/s';
+}
+
+// 데미지 숫자가 몬스터 근처에서 위로 떠오르며 사라지는 연출
+function showDamagePopup(dmg, isCrit, evt) {
+  const area = document.getElementById('monsterArea');
+  const rect = area.getBoundingClientRect();
+  const popup = document.createElement('div');
+  popup.className = 'dmgPopup' + (isCrit ? ' crit' : '');
+  popup.textContent = (isCrit ? '💥' : '') + formatNum(dmg);
+
+  let x, y;
+  if (evt && evt.clientX) {
+    x = evt.clientX - rect.left;
+    y = evt.clientY - rect.top;
+  } else {
+    // 자동 공격/펫 공격처럼 클릭 좌표가 없을 때는 몬스터 위치 근처에 무작위로 표시
+    x = rect.width / 2 + (Math.random() - 0.5) * 60;
+    y = rect.height / 2 - 40 + (Math.random() - 0.5) * 20;
+  }
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  area.appendChild(popup);
+  setTimeout(() => popup.remove(), 700);
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+// 현재 선택된 탭(아이템/펫/환생상점)에 맞는 상점 목록을 새로 그림
+function renderShop() {
+  const area = document.getElementById('shopArea');
+  area.innerHTML = '';
+
+  if (currentTab === 'items') {
+    Object.keys(ITEM_DEFS).forEach(id => {
+      const def = ITEM_DEFS[id];
+      const level = state.item[id];
+      const cost = costOf(ITEM_DEFS, id, level);
+      area.appendChild(buildShopRow({
+        icon: def.icon, name: `${def.name} (Lv.${level})`, desc: def.desc(level + 1),
+        costLabel: `💰 ${formatNum(cost)}`, disabled: state.gold < cost,
+        onClick: () => buyItem(id),
+      }));
+    });
+  } else if (currentTab === 'pets') {
+    Object.keys(PET_DEFS).forEach(id => {
+      const def = PET_DEFS[id];
+      const level = state.pet[id];
+      const cost = costOf(PET_DEFS, id, level);
+      area.appendChild(buildShopRow({
+        icon: def.icon, name: `${def.name} (Lv.${level})`,
+        desc: `초당 데미지 +${def.dps} (누적 ${formatNum(level * def.dps)}/s)`,
+        costLabel: `💰 ${formatNum(cost)}`, disabled: state.gold < cost,
+        onClick: () => buyPet(id),
+      }));
+    });
+  } else if (currentTab === 'perm') {
+    Object.keys(PERM_DEFS).forEach(id => {
+      const def = PERM_DEFS[id];
+      const level = state.perm[id];
+      const cost = costOf(PERM_DEFS, id, level);
+      area.appendChild(buildShopRow({
+        icon: def.icon, name: `${def.name} (Lv.${level})`, desc: def.desc(1),
+        costLabel: `💎 ${formatNum(cost)}`, disabled: state.rebirthPoints < cost,
+        onClick: () => buyPerm(id), perm: true,
+      }));
+    });
+  }
+}
+
+function buildShopRow({ icon, name, desc, costLabel, disabled, onClick, perm }) {
+  const row = document.createElement('div');
+  row.className = 'shopRow';
+  row.innerHTML = `
+    <div class="info">
+      <div class="icon">${icon}</div>
+      <div class="texts">
+        <div class="name">${name}</div>
+        <div class="desc">${desc}</div>
+      </div>
+    </div>
+    <button class="buyBtn ${perm ? 'perm' : ''}" ${disabled ? 'disabled' : ''}>${costLabel}</button>
+  `;
+  row.querySelector('button').addEventListener('click', onClick);
+  return row;
+}
+
+/* =====================================================================
+   9. 초기화 & 이벤트 바인딩
+   ===================================================================== */
+function initGame() {
+  state = newGameState();
+  recalcStats();
+  spawnMonster();
+  resetAutoAttackTimer();
+  startPetTimer();
+  renderTopBar();
+  renderStatsPanel();
+  renderShop();
+}
+
+document.getElementById('monsterEmoji').addEventListener('click', onMonsterClick);
+
+document.querySelectorAll('.tabBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    renderShop();
+  });
+});
+
+document.getElementById('rebirthBtn').addEventListener('click', openRebirthModal);
+document.getElementById('rebirthConfirmBtn').addEventListener('click', doRebirth);
+document.getElementById('rebirthCancelBtn').addEventListener('click', () => {
+  document.getElementById('rebirthModal').classList.add('hidden');
+});
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  initGame();
+});
+
+// PWA: 서비스 워커 등록 (오프라인 실행 + "앱 설치" 배너 노출 조건 충족)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

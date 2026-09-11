@@ -1,32 +1,40 @@
-// 인생게임 서비스 워커 - 오프라인에서도 앱처럼 실행되도록 핵심 파일을 캐싱
-const CACHE_NAME = 'life-game-cache-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+const CACHE_NAME = 'life-game-v1';
+const ASSETS_TO_CACHE = [
+  'index.html',
+  'manifest.json',
+  'icon-192.png',
+  'icon-512.png'
 ];
 
+// 서비스 워커 설치 및 파일 캐싱
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
   );
-  self.skipWaiting();
 });
 
+// 활성화 및 구버전 캐시 삭제
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
   );
-  self.clients.claim();
 });
 
-// 캐시 우선, 없으면 네트워크로 요청 (오프라인에서도 게임이 열리도록)
+// 네트워크 요청 가로채기 (PWA 설치 필수 조건)
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request);
+    })
   );
 });

@@ -80,7 +80,7 @@
             <div class="warning-text">⚠ 지금 공격력으로는 너무 오래 걸려요. 환생을 고려해보세요!</div>
             
             <div class="target-box">
-                <div class="monster-sprite" id="target-monster">🍼</div>
+                <div class="monster-sprite" id="target-monster">👶</div>
                 <div><span id="display-target-name">젖병</span></div>
                 <div class="hp-bar-container">
                     <div class="hp-bar" id="display-hp-bar"></div>
@@ -89,12 +89,12 @@
             </div>
             
             <div class="specs-list">
-                <div>공격력 <strong id="spec-atk">10</strong></div>
-                <div>공격속도 <strong id="spec-as">1/초</strong></div>
-                <div>크리확률 <strong id="spec-crit-rate">5%</strong></div>
-                <div>크리데미지 <strong id="spec-crit-dmg">150%</strong></div>
+                <div>공격력 <strong id="spec-atk">0</strong></div>
+                <div>공격속도 <strong id="spec-as">0/초</strong></div>
+                <div>크리확률 <strong id="spec-crit-rate">0%</strong></div>
+                <div>크리데미지 <strong id="spec-crit-dmg">0%</strong></div>
                 <div>펫 초당피해 <strong id="spec-pet-dps">0</strong></div>
-                <div>등장속도 <strong id="spec-spawn-ms">1000ms</strong></div>
+                <div>등장속도 <strong id="spec-spawn-ms">0ms</strong></div>
             </div>
             <p style="font-size: 11px; color:#999; text-align:center; margin-top:15px;">몬스터를 클릭해서 공격하세요. 자동 공격은 펫과 강화로 얻을 수 있어요.</p>
         </section>
@@ -102,13 +102,13 @@
         <!-- 2. 강화 탭 -->
         <section id="panel-upgrade" class="panel">
             <h3>장비 및 신체 강화</h3>
-            <p style="color:#666; font-size:13px;">준비 중인 기능입니다. 골드를 사용하여 공격력을 높이세요.</p>
+            <p style="color:#666; font-size:13px;">강화 시스템 메뉴입니다.</p>
         </section>
         
         <!-- 3. 펫 탭 -->
         <section id="panel-pet" class="panel">
             <h3>보조 펫 고용</h3>
-            <p style="color:#666; font-size:13px;">준비 중인 기능입니다. 초당 자동 데미지를 획득하세요.</p>
+            <p style="color:#666; font-size:13px;">펫 시스템 메뉴입니다.</p>
         </section>
         
         <!-- 4. 환생 탭 -->
@@ -133,7 +133,7 @@
                     <tr style="background:#f1f3f5; border-bottom:2px solid #ddd;"><th style="padding:8px;">순위</th><th>닉네임</th><th>RP</th><th>최고층</th></tr>
                 </thead>
                 <tbody id="rank-list-body">
-                    <tr><td colspan="4" style="padding:15px; text-align:center; color:#999;">데이터를 불러오는 중...</td></tr>
+                    <tr><td colspan="4" style="padding:15px; text-align:center; color:#999;">불러오는 중...</td></tr>
                 </tbody>
             </table>
             <p style="font-size:11px; color:#34c759; text-align:center; margin-top:20px;">⏱ 진행 상황은 기기에 자동으로 안전하게 저장됩니다.</p>
@@ -161,10 +161,9 @@
 </div>
 
 <script>
-    // 전역 상태 변수 선언 및 초기화 스펙 정정
     let gameState = {
         gold: 0, rp: 0, floor: 1, maxHp: 100, currentHp: 100,
-        atk: 10, critRate: 5, critDmg: 150, petDps: 0, spawnMs: 1000,
+        atk: 0, critRate: 0, critDmg: 0, petDps: 0, spawnMs: 0,
         nickname: ""
     };
 
@@ -172,7 +171,7 @@
         try {
             gameState = JSON.parse(localStorage.getItem('life_game_save'));
         } catch(e) {
-            console.error("저장 데이터 로드 실패, 초기화 진행", e);
+            console.error("저장 데이터 로드 실패", e);
         }
     }
 
@@ -191,15 +190,6 @@
         document.getElementById('spec-pet-dps').innerText = gameState.petDps;
         document.getElementById('spec-spawn-ms').innerText = gameState.spawnMs + "ms";
         
-        // 성장 단계 동적 제어 규칙 보완
-        const tierEl = document.getElementById('display-tier');
-        const descEl = document.getElementById('display-tier-desc');
-        if (gameState.floor >= 20) {
-            tierEl.innerText = "어린이"; descEl.innerText = "학교에 다닐 준비 중";
-        } else {
-            tierEl.innerText = "아기"; descEl.innerText = "무럭무럭 자라는 중";
-        }
-
         if(gameState.nickname && document.getElementById('user-nickname')) {
             document.getElementById('user-nickname').value = gameState.nickname;
         }
@@ -217,7 +207,6 @@
         if(tabId === 'rank') { loadMockRankings(); }
     }
 
-    // 모바일 터치 씹힘 현상 수정을 위해 click 이벤트 리스너 비정상 루프 정정
     const monsterBtn = document.getElementById('target-monster');
     monsterBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -226,46 +215,26 @@
         if(isCrit) { finalDamage = Math.round(finalDamage * (gameState.critDmg / 100)); }
         
         gameState.currentHp -= finalDamage;
-        
         if(gameState.currentHp <= 0) {
-            gameState.gold += (gameState.floor * 5);
-            gameState.floor += 1;
-            gameState.maxHp = Math.round(100 * Math.pow(1.15, gameState.floor - 1));
+            gameState.gold += 10; // 임시 보상 정산 규칙
             gameState.currentHp = gameState.maxHp;
-            
-            // 몬스터 스프라이트 리셋 조건문 정정
-            const spriteEl = document.getElementById('target-monster');
-            const nameEl = document.getElementById('display-target-name');
-            if(gameState.floor >= 15) { spriteEl.innerText = "🧸"; nameEl.innerText = "토끼인형"; }
-            else if(gameState.floor >= 5) { spriteEl.innerText = "🍼"; nameEl.innerText = "고급젖병"; }
-            else { spriteEl.innerText = "🍼"; nameEl.innerText = "젖병"; }
         }
         updateUI();
     });
 
     function openRebirthModal() { 
-        document.getElementById('rebirth-point-gain').innerText = Math.floor(gameState.gold / 100);
+        document.getElementById('rebirth-point-gain').innerText = "0";
         document.getElementById('rebirth-modal').style.display = 'flex'; 
     }
     function closeRebirthModal() { document.getElementById('rebirth-modal').style.display = 'none'; }
     
     function executeRebirth() {
-        const gainRp = Math.floor(gameState.gold / 100);
-        gameState.rp += gainRp;
         gameState.gold = 0;
         gameState.floor = 1;
-        gameState.maxHp = 100;
-        gameState.currentHp = 100;
-        
+        gameState.currentHp = gameState.maxHp;
         closeRebirthModal();
-        
-        const spriteEl = document.getElementById('target-monster');
-        const nameEl = document.getElementById('display-target-name');
-        spriteEl.innerText = "🍼"; 
-        nameEl.innerText = "젖병";
-        
         updateUI();
-        alert(gainRp + " RP를 획득하고 환생하셨습니다!");
+        alert("환생하셨습니다!");
     }
 
     function registerNickname() {
@@ -273,7 +242,7 @@
         if(!name) return alert("닉네임을 입력하세요.");
         gameState.nickname = name;
         updateUI();
-        alert("닉네임 '" + name + "'(으)로 등록되었습니다.");
+        alert("닉네임 등록 완료");
         loadMockRankings();
     }
     
@@ -281,8 +250,6 @@
         const myName = gameState.nickname || "나 (미등록)";
         const html = `
             <tr style="color:#007aff; font-weight:bold;"><td>1</td><td>${myName}</td><td>${gameState.rp}</td><td>${gameState.floor}층</td></tr>
-            <tr><td>2</td><td>클릭마스터</td><td>520</td><td>142층</td></tr>
-            <tr><td>3</td><td>방구석게이머</td><td>120</td><td>55층</td></tr>
         `;
         document.getElementById('rank-list-body').innerHTML = html;
     }

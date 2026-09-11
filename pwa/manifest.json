@@ -1,7 +1,7 @@
 {
   "name": "인생게임",
   "short_name": "인생게임",
-  "description": "태어나서 죽을 때까지, 클릭으로 살아남기",
+  "description": "인생을 미리 경험하는 게임",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",

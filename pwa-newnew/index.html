@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>인생게임</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6fa5">
+<meta name="background-color" content="#ffe4ee">
+
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="인생게임">
+
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<style>
+  :root{
+    --bg1:#ffe4ee; --bg2:#ffd1e3; --accent:#ff6fa5; --text:#7a2f49;
+    --card:#ffffff; --cardText:#3a2230; --shadow:rgba(122,47,73,0.18);
+  }
+  body[data-stage="1"]{ --bg1:#fff6d6; --bg2:#e3f7d3; --accent:#3fae6a; --text:#2f5233; --card:#ffffff; --cardText:#2f4a33; --shadow:rgba(47,82,51,0.18); }
+  body[data-stage="2"]{ --bg1:#1c1330; --bg2:#2c1b4d; --accent:#ff3fa4; --text:#f4e9ff; --card:#2a1a48; --cardText:#f4e9ff; --shadow:rgba(255,63,164,0.35); }
+  body[data-stage="3"]{ --bg1:#eef1f6; --bg2:#dbe3ee; --accent:#3b5bdb; --text:#1f2937; --card:#ffffff; --cardText:#1f2937; --shadow:rgba(59,91,219,0.18); }
+  body[data-stage="4"]{ --bg1:#f6ead9; --bg2:#ecd8bd; --accent:#c9793e; --text:#4a2f18; --card:#fffaf3; --cardText:#4a2f18; --shadow:rgba(201,121,62,0.2); }
+  body[data-stage="5"]{ --bg1:#efe6d2; --bg2:#e4d6b8; --accent:#8a6d3f; --text:#3b2f1d; --card:#fffcf4; --cardText:#3b2f1d; --shadow:rgba(138,109,63,0.2); }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    color:var(--text);
+    min-height:100vh;
+    transition:background 0.6s ease, color 0.6s ease;
+    overscroll-behavior:none;
+  }
+  .wrap{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding:calc(14px + env(safe-area-inset-top)) 14px calc(90px + env(safe-area-inset-bottom));
+    position:relative;
+  }
+  .title{
+    text-align:center;
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:1px;
+    margin:4px 0 2px;
+  }
+  .subtitle{
+    text-align:center;
+    font-size:12px;
+    opacity:0.7;
+    margin-bottom:10px;
+  }
+  .resource-bar{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .res-pill{
+    flex:1;
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:14px;
+    padding:8px 10px;
+    box-shadow:0 4px 14px var(--shadow);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:13px;
+    font-weight:700;
+  }
+  .res-pill .ico{font-size:16px;}
+  .stage-badge{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:16px;
+    padding:10px 14px;
+    box-shadow:0 4px 14px var(--shadow);
+    margin-bottom:12px;
+  }
+  .stage-badge .name{font-weight:800; font-size:15px;}
+  .stage-badge .sub{font-size:11px; opacity:0.65;}
+  .stage-badge .floor{font-size:12px; font-weight:700; color:var(--accent);}
+
+  .road-progress{
+    height:6px;
+    background:rgba(0,0,0,0.08);
+    border-radius:4px;
+    overflow:hidden;
+    margin:0 2px 12px;
+  }
+  .road-progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--accent);
+    border-radius:4px;
+    transition:width 0.25s ease;
+  }
+
+  .arena{
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:22px;
+    box-shadow:0 8px 24px var(--shadow);
+    position:relative;
+    overflow:hidden;
+    margin-bottom:12px;
+    height:230px;
+  }
+  .sky-glow{
+    position:absolute; inset:0;
+    background:radial-gradient(120% 90% at 20% 0%, rgba(255,255,255,0.35), transparent 60%);
+    pointer-events:none;
+  }
+  .parallax-layer{
+    position:absolute;
+    left:0;
+    display:flex;
+    white-space:nowrap;
+    pointer-events:none;
+    will-change:transform;
+  }
+  .parallax-layer .grp{ display:flex; align-items:center; }
+  .parallax-layer .grp span{ display:inline-block; padding:0 20px; }
+  .layer-far{ top:10px; height:30px; font-size:24px; opacity:0.4; animation:scrollX 46s linear infinite; }
+  .layer-mid{ bottom:38px; height:36px; font-size:30px; opacity:0.6; animation:scrollX 20s linear infinite; }
+  @keyframes scrollX{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+
+  .ground{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:34px;
+    background-color:rgba(0,0,0,0.06);
+    background-image:repeating-linear-gradient(90deg, var(--accent) 0 22px, transparent 22px 52px);
+    background-size:52px 3px;
+    background-repeat:repeat-x;
+    background-position:0 16px;
+    opacity:0.55;
+    animation:groundScroll 1.1s linear infinite;
+  }
+  @keyframes groundScroll{ from{ background-position-x:0; } to{ background-position-x:-52px; } }
+
+  .player{
+    position:absolute;
+    left:11%;
+    bottom:12px;
+    width:60px;
+    height:60px;
+    font-size:52px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:5;
+    transform-origin:bottom center;
+    filter:drop-shadow(0 6px 6px var(--shadow));
+  }
+  .player.walking{ animation:walkCycle var(--walk-dur, 0.7s) ease-in-out infinite; }
+  .player.punching{ animation:punch 0.16s ease; }
+  @keyframes walkCycle{
+    0%{ transform:translateY(0) rotate(-4deg) scaleY(1); }
+    22%{ transform:translateY(-9px) rotate(0deg) scaleY(1.03); }
+    50%{ transform:translateY(0) rotate(4deg) scaleY(0.97); }
+    72%{ transform:translateY(-9px) rotate(0deg) scaleY(1.03); }
+    100%{ transform:translateY(0) rotate(-4deg) scaleY(1); }
+  }
+  @keyframes punch{
+    0%{ transform:translateX(0) rotate(0); }
+    50%{ transform:translateX(14px) rotate(10deg); }
+    100%{ transform:translateX(0) rotate(0); }
+  }
+
+  .monster-wrap{
+    position:absolute;
+    right:9%;
+    bottom:10px;
+    width:150px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    z-index:4;
+  }
+  .monster-name{
+    text-align:center;
+    font-weight:800;
+    font-size:13px;
+    margin-bottom:3px;
+    background:rgba(255,255,255,0.55);
+    color:var(--cardText);
+    padding:2px 10px;
+    border-radius:8px;
+  }
+  body[data-stage="2"] .monster-name{ background:rgba(255,255,255,0.15); }
+  .hp-track{
+    width:120px;
+    height:10px;
+    background:rgba(0,0,0,0.15);
+    border-radius:6px;
+    overflow:hidden;
+    margin-bottom:2px;
+  }
+  .hp-fill{
+    height:100%;
+    background:linear-gradient(90deg,var(--accent),var(--accent));
+    width:100%;
+    transition:width 0.12s linear;
+    border-radius:6px;
+  }
+  .hp-text{
+    text-align:center;
+    font-size:10px;
+    font-weight:700;
+    opacity:0.75;
+    margin-bottom:4px;
+  }
+  .monster-btn{
+    background:none;
+    border:none;
+    width:90px;
+    height:90px;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:76px;
+    cursor:pointer;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    transition:transform 0.06s ease;
+    filter:drop-shadow(0 8px 10px var(--shadow));
+    touch-action:manipulation;
+    line-height:1;
+  }
+  .monster-btn:active{transform:scale(0.88);}
+  .monster-btn.walking-monster{ animation:walkCycle var(--walk-dur, 0.8s) ease-in-out infinite; animation-delay:-0.25s; }
+  .monster-btn.shake{animation:shake 0.13s;}
+  .monster-btn.spawn-in{animation:spawnIn 0.3s ease;}
+  .monster-btn.defeated{animation:defeated 0.4s ease forwards;}
+  @keyframes shake{
+    0%{transform:translate(0,0) rotate(0);}
+    30%{transform:translate(-4px,2px) rotate(-4deg);}
+    60%{transform:translate(4px,-2px) rotate(4deg);}
+    100%{transform:translate(0,0) rotate(0);}
+  }
+  @keyframes spawnIn{
+    0%{ transform:translateX(60px); opacity:0; }
+    100%{ transform:translateX(0); opacity:1; }
+  }
+  @keyframes defeated{
+    0%{ transform:translateY(0) rotate(0); opacity:1; }
+    100%{ transform:translateY(20px) rotate(50deg); opacity:0; }
+  }
+  .arena.sprint .layer-mid{ animation-duration:6s; }
+  .arena.sprint .layer-far{ animation-duration:20s; }
+  .arena.sprint .ground{ animation-duration:0.4s; }
+
+  .float-dmg{
+    position:absolute;
+    font-weight:800;
+    font-size:15px;
+    pointer-events:none;
+    color:var(--accent);
+    animation:floatUp 0.8s ease-out forwards;
+    white-space:nowrap;
+    z-index:6;
+  }
+  .float-dmg.crit{
+    font-size:20px;
+    color:#ff3b3b;
+  }
+  @keyframes floatUp{
+    0%{opacity:1; transform:translateY(0) scale(1);}
+    100%{opacity:0; transform:translateY(-60px) scale(1.15);}
+  }
+
+  .recommend-banner{
+    background:#fff3cd;
+    color:#7a5c00;
+    border-radius:12px;
+    padding:9px 12px;
+    font-size:12px;
+    font-weight:700;
+    text-align:center;
+    margin-bottom:10px;
+    display:none;
+  }
+  .recommend-banner.show{display:block;}
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:16px;
+    padding:12px 14px;
+    box-shadow:0 4px 14px var(--shadow);
+    font-size:12px;
+    margin-bottom:12px;
+  }
+  .stat-grid div{display:flex; justify-content:space-between; opacity:0.85;}
+  .stat-grid b{font-weight:800; color:var(--accent);}
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .tab-btn{
+    flex:1;
+    padding:10px 4px;
+    border:none;
+    border-radius:12px;
+    background:rgba(255,255,255,0.35);
+    color:var(--text);
+    font-weight:700;
+    font-size:12px;
+    cursor:pointer;
+  }
+  body[data-stage="2"] .tab-btn{background:rgba(255,255,255,0.08); color:var(--text);}
+  .tab-btn.active{
+    background:var(--accent);
+    color:#fff;
+  }
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .shop-item{
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:14px;
+    padding:10px 12px;
+    box-shadow:0 3px 10px var(--shadow);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .shop-item .emoji{font-size:26px; width:34px; text-align:center;}
+  .shop-item .emoji.sprite-emoji-wrap{
+    display:flex; align-items:center; justify-content:center; height:34px; overflow:hidden;
+  }
+  .shop-item .emoji img.sprite-img{ width:28px; height:28px; }
+
+  /* 외부 이미지가 이모지를 대체할 때 쓰이는 공용 스타일 */
+  .sprite-img{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    pointer-events:none;      /* 클릭이 부모(버튼)로 그대로 전달되도록 */
+    -webkit-user-drag:none;   /* 이미지 드래그 고스트 방지 */
+    user-select:none;
+  }
+  .sprite-player,
+  .sprite-monster{
+    filter:none;              /* 부모 요소의 drop-shadow와 중복 적용 방지 */
+  }
+  .shop-item .info{flex:1;}
+  .shop-item .name{font-weight:800; font-size:13px;}
+  .shop-item .desc{font-size:11px; opacity:0.65; margin-top:1px;}
+  .shop-item .lvl{font-size:10px; opacity:0.5; margin-top:1px;}
+  .buy-btn{
+    border:none;
+    border-radius:10px;
+    padding:9px 10px;
+    font-weight:800;
+    font-size:12px;
+    color:#fff;
+    background:var(--accent);
+    cursor:pointer;
+    min-width:76px;
+  }
+  .buy-btn:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+
+  .rebirth-box{
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:16px;
+    padding:16px;
+    box-shadow:0 4px 14px var(--shadow);
+    text-align:center;
+    margin-bottom:12px;
+  }
+  .rebirth-box .rp-gain{
+    font-size:26px;
+    font-weight:800;
+    color:var(--accent);
+    margin:6px 0;
+  }
+  .rebirth-btn{
+    border:none;
+    border-radius:12px;
+    padding:12px 18px;
+    font-weight:800;
+    font-size:14px;
+    color:#fff;
+    background:linear-gradient(90deg,var(--accent),#ff9fc7);
+    cursor:pointer;
+    width:100%;
+    margin-top:8px;
+  }
+  body[data-stage="2"] .rebirth-btn{background:linear-gradient(90deg,var(--accent),#8a4fff);}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.5);
+    display:none; align-items:center; justify-content:center; z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:#fff; color:#2a2a2a; border-radius:18px; padding:20px;
+    max-width:340px; width:100%; text-align:center;
+  }
+  .modal h3{margin:0 0 8px; font-size:17px;}
+  .modal p{font-size:13px; opacity:0.75; line-height:1.5; margin:0 0 16px;}
+  .modal-btns{display:flex; gap:8px;}
+  .modal-btns button{
+    flex:1; border:none; border-radius:10px; padding:11px; font-weight:800; font-size:13px; cursor:pointer;
+  }
+  .modal-cancel{background:#eee; color:#555;}
+  .modal-confirm{background:var(--accent); color:#fff;}
+
+  .empty-note{
+    text-align:center; font-size:12px; opacity:0.5; padding:14px 0;
+  }
+  .footer-note{
+    text-align:center; font-size:10px; opacity:0.4; margin-top:8px;
+  }
+  .footer-note.saved{ opacity:0.55; }
+
+  .rank-box{
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:16px;
+    padding:14px;
+    box-shadow:0 4px 14px var(--shadow);
+    margin-bottom:12px;
+  }
+  .rank-label{ font-size:11px; opacity:0.6; margin-bottom:6px; font-weight:700; }
+  .rank-input-row{ display:flex; gap:8px; }
+  .rank-input-row input{
+    flex:1;
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:10px;
+    padding:9px 10px;
+    font-size:13px;
+    background:rgba(255,255,255,0.6);
+    color:#2a2a2a;
+  }
+  body[data-stage="2"] .rank-input-row input{ background:rgba(255,255,255,0.85); }
+  .rank-input-row button{ min-width:64px; }
+  .rank-my-summary{ font-size:11px; opacity:0.7; margin-top:8px; }
+  .rank-list-header{
+    display:grid;
+    grid-template-columns:36px 1fr 64px 56px;
+    font-size:10px;
+    font-weight:700;
+    opacity:0.5;
+    padding:0 12px;
+    margin-bottom:6px;
+  }
+  .rank-row{
+    display:grid;
+    grid-template-columns:36px 1fr 64px 56px;
+    align-items:center;
+    background:var(--card);
+    color:var(--cardText);
+    border-radius:12px;
+    padding:8px 12px;
+    font-size:12px;
+    margin-bottom:6px;
+    box-shadow:0 2px 8px var(--shadow);
+  }
+  .rank-row.me{
+    outline:2px solid var(--accent);
+  }
+  .rank-row .rank-no{ font-weight:800; color:var(--accent); }
+  .rank-row .rank-name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+</head>
+<body data-stage="0">
+<div class="wrap">
+  <div class="title">인생게임</div>
+  <div class="subtitle">태어나서 죽을 때까지, 클릭으로 살아남기</div>
+
+  <div class="resource-bar">
+    <div class="res-pill"><span class="ico">💰</span><span id="goldDisplay">0</span></div>
+    <div class="res-pill"><span class="ico">✨</span><span id="rpDisplay">0</span> RP</div>
+  </div>
+
+  <div class="stage-badge">
+    <div>
+      <div class="name" id="stageName">아기</div>
+      <div class="sub" id="stageSub">무럭무럭 자라는 중</div>
+    </div>
+    <div class="floor" id="floorDisplay">층 1</div>
+  </div>
+
+  <div class="road-progress"><div class="road-progress-fill" id="roadFill"></div></div>
+
+  <div class="recommend-banner" id="recommendBanner">⚠️ 지금 공격력으로는 너무 오래 걸려요. 환생을 고려해보세요!</div>
+
+  <div class="arena" id="arena">
+    <div class="sky-glow"></div>
+    <div class="parallax-layer layer-far" id="layerFar"></div>
+    <div class="parallax-layer layer-mid" id="layerMid"></div>
+    <div class="ground"></div>
+    <div class="player walking" id="player">👶</div>
+    <div class="monster-wrap">
+      <div class="monster-name" id="monsterName">젖병</div>
+      <div class="hp-track"><div class="hp-fill" id="hpFill"></div></div>
+      <div class="hp-text" id="hpText">100 / 100</div>
+      <button class="monster-btn walking-monster" id="monsterBtn">🍼</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div>공격력 <b id="statAtk">0</b></div>
+    <div>공격속도 <b id="statSpeed">0/초</b></div>
+    <div>크리확률 <b id="statCrit">0%</b></div>
+    <div>크리데미지 <b id="statCritDmg">0%</b></div>
+    <div>펫 초당피해 <b id="statPetDps">0</b></div>
+    <div>등장속도 <b id="statSpawn">0ms</b></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="hunt">사냥</button>
+    <button class="tab-btn" data-tab="shop">강화</button>
+    <button class="tab-btn" data-tab="pets">펫</button>
+    <button class="tab-btn" data-tab="rebirth">환생</button>
+    <button class="tab-btn" data-tab="rank">랭킹</button>
+  </div>
+
+  <div class="panel active" id="panel-hunt">
+    <div class="empty-note">몬스터를 클릭해서 공격하세요. 자동 공격은 펫과 강화로 얻을 수 있어요.</div>
+  </div>
+
+  <div class="panel" id="panel-shop">
+    <div id="shopList"></div>
+  </div>
+
+  <div class="panel" id="panel-pets">
+    <div id="petsList"></div>
+  </div>
+
+  <div class="panel" id="panel-rebirth">
+    <div class="rebirth-box">
+      <div style="font-size:12px; opacity:0.7;">지금 환생하면 얻는 환생 포인트</div>
+      <div class="rp-gain" id="rpGainPreview">0</div>
+      <div style="font-size:11px; opacity:0.6;">환생하면 층수, 골드, 강화, 펫이 초기화되지만<br>환생 포인트로 산 영구 강화는 유지돼요.</div>
+      <button class="rebirth-btn" id="rebirthBtn">환생하기</button>
+    </div>
+    <div id="rpShopList"></div>
+  </div>
+
+  <div class="panel" id="panel-rank">
+    <div class="rank-box">
+      <div class="rank-label">닉네임</div>
+      <div class="rank-input-row">
+        <input type="text" id="nicknameInput" maxlength="12" placeholder="닉네임을 입력하세요">
+        <button class="buy-btn" id="submitRankBtn">등록</button>
+      </div>
+      <div class="rank-my-summary" id="rankMySummary"></div>
+      <div class="rank-local-note" id="rankLocalNote" style="display:none; font-size:10px; opacity:0.55; margin-top:6px;">⚠️ 이 앱은 서버가 연결되지 않아 이 기기 안에서만 기록이 보여요.</div>
+    </div>
+    <div class="rank-list-header">
+      <span>순위</span><span>닉네임</span><span>RP</span><span>최고층</span>
+    </div>
+    <div id="rankList"></div>
+    <div class="empty-note" id="rankEmptyNote">불러오는 중...</div>
+  </div>
+
+  <div class="footer-note" id="footerNote">진행 상황은 자동으로 저장됩니다</div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>정말 환생할까요?</h3>
+    <p id="modalText"></p>
+    <div class="modal-btns">
+      <button class="modal-cancel" id="modalCancel">취소</button>
+      <button class="modal-confirm" id="modalConfirm">환생하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Claude 아티팩트 환경(window.storage)이 없으면 localStorage로 동작하는 폴백.
+  // 저장 형식(get/set/delete/list)은 동일하게 맞춰서 나머지 코드는 그대로 재사용한다.
+  const hasCloudStorage = (typeof window.storage !== 'undefined') && window.storage && typeof window.storage.get === 'function';
+  const AppStorage = hasCloudStorage ? window.storage : {
+    async get(key, shared){
+      const k = (shared ? 'shared:' : 'local:') + key;
+      const raw = localStorage.getItem(k);
+      if(raw === null){ throw new Error('키를 찾을 수 없습니다: ' + key); }
+      return { key, value: raw, shared: !!shared };
+    },
+    async set(key, value, shared){
+      const k = (shared ? 'shared:' : 'local:') + key;
+      localStorage.setItem(k, value);
+      return { key, value, shared: !!shared };
+    },
+    async delete(key, shared){
+      const k = (shared ? 'shared:' : 'local:') + key;
+      localStorage.removeItem(k);
+      return { key, deleted:true, shared: !!shared };
+    },
+    async list(prefix, shared){
+      const p = (shared ? 'shared:' : 'local:') + (prefix || '');
+      const keys = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf(p) === 0) keys.push(k.slice((shared?'shared:':'local:').length));
+      }
+      return { keys, prefix, shared: !!shared };
+    }
+  };
+
+  // ---------- 데이터 ----------
+  const TIERS = [
+    { name:'아기', sub:'무럭무럭 자라는 중', player:'👶', deco:['☁️','🎈','☁️','🧸','☁️','🌈'], monsters:[
+        {name:'젖병', emoji:'🍼'},{name:'기저귀', emoji:'🧷'},{name:'공갈젖꼭지', emoji:'🚼'},
+        {name:'딸랑이', emoji:'🎵'},{name:'분유', emoji:'🥛'} ]},
+    { name:'소년', sub:'꿈 많은 학창 시절', player:'🧒', deco:['🏫','🌳','⚽','🌳','🎒','🌳'], monsters:[
+        {name:'책', emoji:'📚'},{name:'친구', emoji:'👬'},{name:'운동', emoji:'⚽'},
+        {name:'학원', emoji:'🏫'},{name:'숙제', emoji:'📝'} ]},
+    { name:'청년', sub:'불타는 청춘', player:'🧑', deco:['🏙️','💡','🌃','🏙️','🎶','🌃'], monsters:[
+        {name:'술', emoji:'🍺'},{name:'미인', emoji:'💃'},{name:'과제', emoji:'📄'},
+        {name:'취업', emoji:'💼'},{name:'면접', emoji:'🎤'} ]},
+    { name:'성인', sub:'사회초년생', player:'👨‍💼', deco:['🏢','🚗','🏢','🚕','🏢','🚗'], monsters:[
+        {name:'야근', emoji:'💻'},{name:'상사', emoji:'😠'},{name:'연봉협상', emoji:'💰'},
+        {name:'야근', emoji:'🌙'},{name:'회의', emoji:'📊'} ]},
+    { name:'아저씨', sub:'가장의 무게', player:'🧔', deco:['🏠','🌳','🚙','🏠','🌳','🚙'], monsters:[
+        {name:'결혼생활', emoji:'💍'},{name:'잔소리', emoji:'🗣️'},{name:'육아', emoji:'👶'},
+        {name:'대출', emoji:'🏦'},{name:'중년의 위기', emoji:'😩'} ]},
+    { name:'할아버지', sub:'인생의 황혼', player:'👴', deco:['🌳','🪑','⛲','🌳','🪑','⛲'], monsters:[
+        {name:'장기', emoji:'♟️'},{name:'바둑', emoji:'⚫'},{name:'노인정', emoji:'🏠'},
+        {name:'지팡이', emoji:'🦯'},{name:'손주', emoji:'👴'} ]},
+  ];
+  const TIER_LEN = 10;
+
+  const GOLD_UPGRADES = [
+    {id:'atk', name:'낡은 검', emoji:'⚔️', desc:'공격력 +2', base:10, mult:1.15},
+    {id:'atkspeed', name:'손목시계', emoji:'⌚', desc:'공격속도 +0.1/초', base:20, mult:1.18},
+    {id:'movespeed', name:'운동화', emoji:'👟', desc:'몬스터 등장 딜레이 -5%', base:15, mult:1.17},
+    {id:'crit', name:'네잎클로버', emoji:'🍀', desc:'크리티컬 확률 +1%', base:25, mult:1.2},
+    {id:'critdmg', name:'강화석', emoji:'💎', desc:'크리티컬 데미지 +10%', base:30, mult:1.2},
+  ];
+  const PETS = [
+    {id:'dog', name:'강아지', emoji:'🐶', desc:'초당 데미지 +3 (레벨당)', base:50, mult:1.22},
+    {id:'cat', name:'고양이', emoji:'🐱', desc:'골드 획득 +5% (레벨당)', base:80, mult:1.24},
+    {id:'owl', name:'부엉이', emoji:'🦉', desc:'크리티컬 확률 +0.5% (레벨당)', base:150, mult:1.27},
+    {id:'dragon', name:'아기 드래곤', emoji:'🐉', desc:'초당 데미지 +15 (레벨당)', base:400, mult:1.3},
+  ];
+  const RP_UPGRADES = [
+    {id:'ratk', name:'영구 공격력', emoji:'💪', desc:'공격력 +10% (레벨당)', base:1, mult:1.3},
+    {id:'ratkspeed', name:'영구 공격속도', emoji:'⚡', desc:'공격속도 +5% (레벨당)', base:1, mult:1.3},
+    {id:'rmove', name:'영구 이동속도', emoji:'🏃', desc:'등장 딜레이 -5% (레벨당)', base:1, mult:1.3},
+    {id:'rcrit', name:'영구 크리확률', emoji:'🎯', desc:'크리티컬 확률 +1% (레벨당)', base:2, mult:1.35},
+    {id:'rcritdmg', name:'영구 크리데미지', emoji:'🔥', desc:'크리티컬 데미지 +15% (레벨당)', base:2, mult:1.35},
+  ];
+
+  // ===================================================================
+  // 외부 이미지 연동 (캐릭터 / 몬스터 / 펫)
+  // ---------------------------------------------------------------------
+  // 아래 세 객체의 값에 이미지 URL을 넣으면, 이모지 대신 해당 이미지가 사용됩니다.
+  // - CHARACTER_IMAGES: key는 TIERS 배열의 인덱스(0~5, 아기~할아버지)
+  // - MONSTER_IMAGES  : key는 몬스터 이름(TIERS[].monsters[].name과 정확히 일치해야 함)
+  // - PET_IMAGES      : key는 펫 id (dog / cat / owl / dragon)
+  //
+  // URL은 어떤 외부 호스팅(같은 사이트의 assets 폴더, GitHub, Cloudinary, S3 등)이든
+  // http(s)로 접근 가능하기만 하면 됩니다. 값을 비워두면 자동으로 이모지가 쓰이고,
+  // 이미지 로딩이 실패해도(깨진 링크 등) 자동으로 이모지로 대체되어 안전합니다.
+  //
+  // [권장 이미지 규격]
+  //   형식   : PNG(투명 배경) 또는 WebP
+  //   크기   : 512x512px 정사각형, 피사체를 중앙에 여백 10~15% 두고 배치
+  //   용량   : 200KB 이하 권장 (모바일 로딩 속도)
+  //   ※ 실제 화면에는 CSS가 자동으로 축소해서 보여주므로 고해상도로 준비해도 됩니다.
+  //
+  // [선택: 재배포 없이 이미지만 바꾸고 싶다면]
+  //   IMAGE_MANIFEST_URL에 아래 형식의 JSON을 반환하는 주소를 넣어두면,
+  //   게임을 켤 때마다 자동으로 불러와 아래 두 객체에 병합합니다.
+  //   {
+  //     "characters": { "0": "https://.../baby.png", "1": "https://.../boy.png" },
+  //     "monsters":   { "젖병": "https://.../bottle.png" },
+  //     "pets":       { "dog": "https://.../dog.png" }
+  //   }
+  // ===================================================================
+  const IMAGE_MANIFEST_URL = ''; // 예: 'https://내도메인/images/manifest.json' (비워두면 사용 안 함)
+
+  const CHARACTER_IMAGES = {
+    0: 'image/character00-1.png',    // 아기
+    1: 'image/character01-1.png',     // 소년
+    2: 'image/character02-1.png',   // 청년
+    3: 'image/character03-1.png',   // 성인
+    4: 'image/character04-1.png',  // 아저씨
+    5: 'image/character05-1.png',     // 할아버지
+  };
+
+  const MONSTER_IMAGES = {
+    // '젖병': 'https://예시.com/monsters/bottle.png',
+    // '기저귀': 'https://예시.com/monsters/diaper.png',
+  };
+
+  const PET_IMAGES = {
+    // dog: 'https://예시.com/pets/dog.png',
+  };
+
+  // 이미지 로드 실패 시 자동으로 이모지로 되돌리고, 컨테이너를 채우도록 렌더링하는 공용 헬퍼
+  function setSprite(container, emoji, imgUrl, altText, spriteClass){
+    container.innerHTML = '';
+    if(imgUrl){
+      const img = document.createElement('img');
+      img.src = imgUrl;
+      img.alt = altText || '';
+      img.loading = 'eager';
+      img.className = 'sprite-img' + (spriteClass ? ' ' + spriteClass : '');
+      img.onerror = function(){
+        container.innerHTML = '';
+        container.textContent = emoji;
+      };
+      container.appendChild(img);
+    } else {
+      container.textContent = emoji;
+    }
+  }
+
+  // 상점 목록처럼 innerHTML 문자열로 조립되는 아이콘용 헬퍼 (실패 시 이모지로 자동 대체)
+  function spriteIconHtml(emoji, imgUrl, altText, spriteClass){
+    if(!imgUrl){
+      return '<div class="emoji">'+emoji+'</div>';
+    }
+    return '<div class="emoji sprite-emoji-wrap">'+
+      '<img src="'+imgUrl+'" alt="'+(altText||'')+'" loading="lazy" class="sprite-img'+(spriteClass?' '+spriteClass:'')+'" '+
+      'onerror="this.parentNode.textContent=\''+emoji+'\'">'+
+      '</div>';
+  }
+
+  async function loadImageManifest(){
+    if(!IMAGE_MANIFEST_URL) return;
+    try{
+      const res = await fetch(IMAGE_MANIFEST_URL, { cache:'no-store' });
+      const data = await res.json();
+      if(data.characters) Object.assign(CHARACTER_IMAGES, data.characters);
+      if(data.monsters) Object.assign(MONSTER_IMAGES, data.monsters);
+      if(data.pets) Object.assign(PET_IMAGES, data.pets);
+    }catch(e){
+      console.warn('이미지 매니페스트를 불러오지 못해 이모지로 대체합니다.', e);
+    }
+  }
+
+  // ---------- 상태 ----------
+  let state = {
+    floor:0, monsterHp:0, monsterMaxHp:0,
+    gold:0, rp:0, totalRpEarned:0, rebirths:0, maxFloorEver:0, nickname:'',
+    goldUpg:{atk:0, atkspeed:0, movespeed:0, crit:0, critdmg:0},
+    pets:{dog:0, cat:0, owl:0, dragon:0},
+    rpUpg:{ratk:0, ratkspeed:0, rmove:0, rcrit:0, rcritdmg:0},
+  };
+  let isDead = false;
+  let atkAccumulator = 0;
+  let lastTick = performance.now();
+
+  // ---------- 유틸 ----------
+  function costFor(base, mult, level){ return Math.ceil(base * Math.pow(mult, level)); }
+  function formatNum(n){
+    n = Math.floor(n);
+    if(n < 1000) return String(n);
+    const units = ['K','M','B','T','Qa','Qi'];
+    let u = -1;
+    let v = n;
+    while(v >= 1000 && u < units.length-1){ v/=1000; u++; }
+    return v.toFixed(v<10?2:(v<100?1:0)) + units[u];
+  }
+
+  function getTierIndex(floor){ return Math.min(Math.floor(floor/TIER_LEN), TIERS.length-1); }
+  function getMonster(floor){
+    const t = TIERS[getTierIndex(floor)];
+    return t.monsters[floor % t.monsters.length];
+  }
+
+  function computeStats(){
+    const g = state.goldUpg, p = state.pets, r = state.rpUpg;
+    const flatAtk = 5 + g.atk*2;
+    const atk = flatAtk * (1 + r.ratk*0.1);
+    const atkSpeed = (1 + g.atkspeed*0.1) * (1 + r.ratkspeed*0.05);
+    const spawnDelay = Math.max(150, 800 * (1 - Math.min(0.9, g.movespeed*0.05)) * (1 - Math.min(0.9, r.rmove*0.05)));
+    const critChance = Math.min(0.75, 0.05 + g.crit*0.01 + p.owl*0.005 + r.rcrit*0.01);
+    const critDamage = 1.5 + g.critdmg*0.1 + r.rcritdmg*0.15;
+    const petDps = p.dog*3 + p.dragon*15;
+    const goldMult = 1 + p.cat*0.05;
+    return { atk, atkSpeed, spawnDelay, critChance, critDamage, petDps, goldMult };
+  }
+
+  function monsterHpFor(floor){ return Math.ceil(10 * Math.pow(1.13, floor)); }
+  function goldRewardFor(floor, goldMult){ return Math.ceil((5 + floor*2) * goldMult); }
+  function rpGainFor(floor){ return Math.max(1, Math.floor(Math.pow(floor, 1.4) / 3)); }
+  function updateWalkDur(s){
+    const stats = s || computeStats();
+    const walkDur = Math.max(0.32, Math.min(0.9, stats.spawnDelay/900));
+    el.arena.style.setProperty('--walk-dur', walkDur.toFixed(2)+'s');
+  }
+
+  // ---------- DOM ----------
+  const el = {
+    body: document.body,
+    gold: document.getElementById('goldDisplay'),
+    rp: document.getElementById('rpDisplay'),
+    stageName: document.getElementById('stageName'),
+    stageSub: document.getElementById('stageSub'),
+    floor: document.getElementById('floorDisplay'),
+    monsterName: document.getElementById('monsterName'),
+    hpFill: document.getElementById('hpFill'),
+    hpText: document.getElementById('hpText'),
+    monsterBtn: document.getElementById('monsterBtn'),
+    statAtk: document.getElementById('statAtk'),
+    statSpeed: document.getElementById('statSpeed'),
+    statCrit: document.getElementById('statCrit'),
+    statCritDmg: document.getElementById('statCritDmg'),
+    statPetDps: document.getElementById('statPetDps'),
+    statSpawn: document.getElementById('statSpawn'),
+    recommendBanner: document.getElementById('recommendBanner'),
+    shopList: document.getElementById('shopList'),
+    petsList: document.getElementById('petsList'),
+    rpShopList: document.getElementById('rpShopList'),
+    rpGainPreview: document.getElementById('rpGainPreview'),
+    rebirthBtn: document.getElementById('rebirthBtn'),
+    modalOverlay: document.getElementById('modalOverlay'),
+    modalText: document.getElementById('modalText'),
+    modalCancel: document.getElementById('modalCancel'),
+    modalConfirm: document.getElementById('modalConfirm'),
+    arena: document.getElementById('arena'),
+    player: document.getElementById('player'),
+    layerFar: document.getElementById('layerFar'),
+    layerMid: document.getElementById('layerMid'),
+    roadFill: document.getElementById('roadFill'),
+    nicknameInput: document.getElementById('nicknameInput'),
+    submitRankBtn: document.getElementById('submitRankBtn'),
+    rankMySummary: document.getElementById('rankMySummary'),
+    rankList: document.getElementById('rankList'),
+    rankEmptyNote: document.getElementById('rankEmptyNote'),
+    rankLocalNote: document.getElementById('rankLocalNote'),
+    footerNote: document.getElementById('footerNote'),
+  };
+
+  let lastTierIdx = -1;
+  function buildParallaxLayers(tierIdx){
+    const deco = TIERS[tierIdx].deco;
+    const buildGroup = ()=>{
+      let html = '<div class="grp">';
+      for(let i=0;i<5;i++){ deco.forEach(ic=>{ html += '<span>'+ic+'</span>'; }); }
+      html += '</div>';
+      return html;
+    };
+    const groupsHtml = buildGroup() + buildGroup();
+    el.layerFar.innerHTML = groupsHtml;
+    el.layerMid.innerHTML = groupsHtml;
+  }
+
+  // ---------- 렌더 ----------
+  function renderTopBar(){
+    el.gold.textContent = formatNum(state.gold);
+    el.rp.textContent = formatNum(state.rp);
+    const tierIdx = getTierIndex(state.floor);
+    const tier = TIERS[tierIdx];
+    el.body.setAttribute('data-stage', String(tierIdx));
+    el.stageName.textContent = tier.name;
+    el.stageSub.textContent = tier.sub;
+    el.floor.textContent = '층 ' + (state.floor+1);
+    setSprite(el.player, tier.player, CHARACTER_IMAGES[tierIdx], tier.name + ' 캐릭터', 'sprite-player');
+    if(tierIdx !== lastTierIdx){
+      buildParallaxLayers(tierIdx);
+      lastTierIdx = tierIdx;
+    }
+    const progressInTier = ((state.floor % TIER_LEN) / TIER_LEN) * 100;
+    el.roadFill.style.width = progressInTier + '%';
+  }
+
+  function renderMonster(){
+    const m = getMonster(state.floor);
+    el.monsterName.textContent = m.name;
+    setSprite(el.monsterBtn, m.emoji, MONSTER_IMAGES[m.name], m.name, 'sprite-monster');
+    const pct = Math.max(0, (state.monsterHp / state.monsterMaxHp) * 100);
+    el.hpFill.style.width = pct + '%';
+    el.hpText.textContent = formatNum(Math.max(0,state.monsterHp)) + ' / ' + formatNum(state.monsterMaxHp);
+  }
+
+  function renderStats(){
+    const s = computeStats();
+    el.statAtk.textContent = formatNum(s.atk);
+    el.statSpeed.textContent = s.atkSpeed.toFixed(2) + '/초';
+    el.statCrit.textContent = Math.round(s.critChance*100) + '%';
+    el.statCritDmg.textContent = Math.round(s.critDamage*100) + '%';
+    el.statPetDps.textContent = formatNum(s.petDps);
+    el.statSpawn.textContent = Math.round(s.spawnDelay) + 'ms';
+
+    updateWalkDur(s);
+
+    const totalDps = s.atk*s.atkSpeed + s.petDps;
+    const timeToKill = state.monsterHp > 0 ? state.monsterHp / Math.max(0.01,totalDps) : 0;
+    el.recommendBanner.classList.toggle('show', timeToKill > 25 && state.floor > 3);
+
+    el.rpGainPreview.textContent = rpGainFor(state.floor) + ' RP';
+  }
+
+  function renderShop(){
+    el.shopList.innerHTML = '';
+    GOLD_UPGRADES.forEach(u=>{
+      const lvl = state.goldUpg[u.id];
+      const cost = costFor(u.base, u.mult, lvl);
+      const row = document.createElement('div');
+      row.className = 'shop-item';
+      row.innerHTML =
+        '<div class="emoji">'+u.emoji+'</div>'+
+        '<div class="info"><div class="name">'+u.name+'</div>'+
+        '<div class="desc">'+u.desc+'</div>'+
+        '<div class="lvl">Lv.'+lvl+'</div></div>'+
+        '<button class="buy-btn" data-buy="'+u.id+'" '+(state.gold<cost?'disabled':'')+'>💰 '+formatNum(cost)+'</button>';
+      el.shopList.appendChild(row);
+    });
+    el.shopList.querySelectorAll('[data-buy]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = btn.getAttribute('data-buy');
+        const u = GOLD_UPGRADES.find(x=>x.id===id);
+        const lvl = state.goldUpg[id];
+        const cost = costFor(u.base, u.mult, lvl);
+        if(state.gold >= cost){
+          state.gold -= cost;
+          state.goldUpg[id]++;
+          renderAll();
+          save();
+        }
+      };
+    });
+  }
+
+  function renderPets(){
+    el.petsList.innerHTML = '';
+    PETS.forEach(p=>{
+      const lvl = state.pets[p.id];
+      const cost = costFor(p.base, p.mult, lvl);
+      const row = document.createElement('div');
+      row.className = 'shop-item';
+      row.innerHTML =
+        spriteIconHtml(p.emoji, PET_IMAGES[p.id], p.name, 'sprite-pet')+
+        '<div class="info"><div class="name">'+p.name+'</div>'+
+        '<div class="desc">'+p.desc+'</div>'+
+        '<div class="lvl">'+(lvl===0?'미보유':'Lv.'+lvl)+'</div></div>'+
+        '<button class="buy-btn" data-pet="'+p.id+'" '+(state.gold<cost?'disabled':'')+'>'+(lvl===0?'💰 '+formatNum(cost)+' 영입':'💰 '+formatNum(cost))+'</button>';
+      el.petsList.appendChild(row);
+    });
+    el.petsList.querySelectorAll('[data-pet]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = btn.getAttribute('data-pet');
+        const p = PETS.find(x=>x.id===id);
+        const lvl = state.pets[id];
+        const cost = costFor(p.base, p.mult, lvl);
+        if(state.gold >= cost){
+          state.gold -= cost;
+          state.pets[id]++;
+          renderAll();
+          save();
+        }
+      };
+    });
+  }
+
+  function renderRpShop(){
+    el.rpShopList.innerHTML = '';
+    RP_UPGRADES.forEach(u=>{
+      const lvl = state.rpUpg[u.id];
+      const cost = costFor(u.base, u.mult, lvl);
+      const row = document.createElement('div');
+      row.className = 'shop-item';
+      row.innerHTML =
+        '<div class="emoji">'+u.emoji+'</div>'+
+        '<div class="info"><div class="name">'+u.name+'</div>'+
+        '<div class="desc">'+u.desc+'</div>'+
+        '<div class="lvl">Lv.'+lvl+'</div></div>'+
+        '<button class="buy-btn" data-rp="'+u.id+'" '+(state.rp<cost?'disabled':'')+'>✨ '+formatNum(cost)+'</button>';
+      el.rpShopList.appendChild(row);
+    });
+    el.rpShopList.querySelectorAll('[data-rp]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = btn.getAttribute('data-rp');
+        const u = RP_UPGRADES.find(x=>x.id===id);
+        const lvl = state.rpUpg[id];
+        const cost = costFor(u.base, u.mult, lvl);
+        if(state.rp >= cost){
+          state.rp -= cost;
+          state.rpUpg[id]++;
+          renderAll();
+          save();
+        }
+      };
+    });
+  }
+
+  function renderAll(){
+    renderTopBar();
+    renderMonster();
+    renderStats();
+    renderShop();
+    renderPets();
+    renderRpShop();
+  }
+
+  // ---------- 전투 로직 ----------
+  function setPlayerAnim(name, revertMs){
+    el.player.classList.remove('walking','punching');
+    void el.player.offsetWidth;
+    el.player.classList.add(name);
+    if(revertMs){
+      setTimeout(()=>{
+        el.player.classList.remove(name);
+        el.player.classList.add('walking');
+      }, revertMs);
+    }
+  }
+  function setMonsterAnim(name, revertMs){
+    el.monsterBtn.classList.remove('walking-monster','shake','spawn-in','defeated');
+    void el.monsterBtn.offsetWidth;
+    el.monsterBtn.classList.add(name);
+    if(revertMs){
+      setTimeout(()=>{
+        el.monsterBtn.classList.remove(name);
+        el.monsterBtn.classList.add('walking-monster');
+      }, revertMs);
+    }
+  }
+
+  function spawnMonster(){
+    state.monsterMaxHp = monsterHpFor(state.floor);
+    state.monsterHp = state.monsterMaxHp;
+    isDead = false;
+    renderMonster();
+    renderStats();
+    el.arena.classList.remove('sprint');
+    updateWalkDur();
+    setMonsterAnim('spawn-in', 300);
+  }
+
+  function spawnFloatDamage(dmg, crit){
+    const rect = el.monsterBtn.getBoundingClientRect();
+    const arenaRect = el.arena.getBoundingClientRect();
+    const d = document.createElement('div');
+    d.className = 'float-dmg' + (crit ? ' crit' : '');
+    d.textContent = (crit ? '💥 ' : '') + formatNum(dmg);
+    const offsetX = (rect.left - arenaRect.left) + rect.width/2 + (Math.random()*60-30);
+    const offsetY = (rect.top - arenaRect.top) + (Math.random()*20);
+    d.style.left = offsetX + 'px';
+    d.style.top = offsetY + 'px';
+    el.arena.appendChild(d);
+    setTimeout(()=>d.remove(), 820);
+  }
+
+  function performAttack(){
+    if(isDead || state.monsterHp <= 0) return;
+    const s = computeStats();
+    const crit = Math.random() < s.critChance;
+    let dmg = s.atk * (crit ? s.critDamage : 1);
+    dmg = Math.max(1, dmg);
+    state.monsterHp -= dmg;
+    spawnFloatDamage(dmg, crit);
+    setMonsterAnim('shake', 130);
+    setPlayerAnim('punching', 160);
+
+    if(state.monsterHp <= 0){
+      handleKill(s);
+    } else {
+      renderMonster();
+    }
+  }
+
+  function handleKill(s){
+    isDead = true;
+    const reward = goldRewardFor(state.floor, s.goldMult);
+    state.gold += reward;
+    state.floor += 1;
+    state.maxFloorEver = Math.max(state.maxFloorEver||0, state.floor);
+    setMonsterAnim('defeated');
+    el.arena.classList.add('sprint');
+    el.arena.style.setProperty('--walk-dur', '0.28s');
+    renderTopBar();
+    renderStats();
+    renderShop();
+    renderPets();
+    setTimeout(()=>{
+      spawnMonster();
+      save();
+    }, s.spawnDelay);
+  }
+
+  // ---------- 틱 (자동 공격 + 펫 데미지) ----------
+  function tick(now){
+    const dt = Math.min(0.25, (now - lastTick)/1000);
+    lastTick = now;
+    if(!isDead && state.monsterHp > 0){
+      const s = computeStats();
+      atkAccumulator += dt * s.atkSpeed;
+      while(atkAccumulator >= 1){
+        atkAccumulator -= 1;
+        performAttack();
+        if(isDead) break;
+      }
+      if(!isDead && s.petDps > 0 && state.monsterHp > 0){
+        state.monsterHp -= s.petDps * dt;
+        if(state.monsterHp <= 0){
+          handleKill(s);
+        } else {
+          renderMonster();
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- 환생 ----------
+  function openRebirthModal(){
+    const gain = rpGainFor(state.floor);
+    el.modalText.textContent = '현재 '+(state.floor+1)+'층까지 도달했어요. 환생하면 '+gain+' RP를 얻고, 층수/골드/강화/펫이 초기화됩니다. (영구 강화는 유지)';
+    el.modalOverlay.classList.add('show');
+  }
+  function closeModal(){ el.modalOverlay.classList.remove('show'); }
+  function doRebirth(){
+    const gain = rpGainFor(state.floor);
+    state.rp += gain;
+    state.totalRpEarned += gain;
+    state.rebirths += 1;
+    state.floor = 0;
+    state.gold = 0;
+    state.goldUpg = {atk:0, atkspeed:0, movespeed:0, crit:0, critdmg:0};
+    state.pets = {dog:0, cat:0, owl:0, dragon:0};
+    closeModal();
+    spawnMonster();
+    renderAll();
+    save();
+  }
+
+  // ---------- 탭 ----------
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-'+btn.getAttribute('data-tab')).classList.add('active');
+      if(btn.getAttribute('data-tab') === 'rank'){
+        refreshLeaderboard();
+      }
+    };
+  });
+
+  el.monsterBtn.addEventListener('click', ()=>{ performAttack(); });
+  el.rebirthBtn.addEventListener('click', openRebirthModal);
+  el.modalCancel.addEventListener('click', closeModal);
+  el.modalConfirm.addEventListener('click', doRebirth);
+
+  // ---------- 랭킹 ----------
+  const LEADERBOARD_KEY = 'lifegame_leaderboard';
+  let rankBusy = false;
+
+  function renderLeaderboard(list){
+    el.rankList.innerHTML = '';
+    if(!list || list.length === 0){
+      el.rankEmptyNote.textContent = '아직 등록된 랭킹이 없어요. 첫 번째로 등록해보세요!';
+      el.rankEmptyNote.style.display = 'block';
+      return;
+    }
+    el.rankEmptyNote.style.display = 'none';
+    list.forEach((entry, i)=>{
+      const row = document.createElement('div');
+      row.className = 'rank-row' + (entry.name === state.nickname ? ' me' : '');
+      row.innerHTML =
+        '<span class="rank-no">'+(i+1)+'</span>'+
+        '<span class="rank-name">'+escapeHtml(entry.name)+'</span>'+
+        '<span>'+formatNum(entry.totalRp)+'</span>'+
+        '<span>'+(entry.maxFloor+1)+'층</span>';
+      el.rankList.appendChild(row);
+    });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  async function fetchLeaderboard(){
+    try{
+      const res = await AppStorage.get(LEADERBOARD_KEY, true);
+      if(res && res.value){
+        return JSON.parse(res.value);
+      }
+    }catch(e){ /* 저장된 랭킹 없음 */ }
+    return [];
+  }
+
+  async function refreshLeaderboard(){
+    el.rankEmptyNote.textContent = '불러오는 중...';
+    el.rankEmptyNote.style.display = 'block';
+    el.rankList.innerHTML = '';
+    updateMySummary();
+    try{
+      const list = await fetchLeaderboard();
+      list.sort((a,b)=> b.totalRp - a.totalRp);
+      renderLeaderboard(list.slice(0,30));
+    }catch(e){
+      el.rankEmptyNote.textContent = '랭킹을 불러올 수 없어요. 잠시 후 다시 시도해주세요.';
+      el.rankEmptyNote.style.display = 'block';
+    }
+  }
+
+  function updateMySummary(){
+    el.rankMySummary.textContent =
+      '내 기록 — RP '+formatNum(state.totalRpEarned)+' · 최고 '+((state.maxFloorEver||0)+1)+'층 · 환생 '+state.rebirths+'회';
+  }
+
+  async function submitScore(){
+    const raw = (el.nicknameInput.value || '').trim();
+    if(!raw){
+      el.nicknameInput.focus();
+      return;
+    }
+    const name = raw.slice(0,12);
+    state.nickname = name;
+    if(rankBusy) return;
+    rankBusy = true;
+    el.submitRankBtn.disabled = true;
+    el.submitRankBtn.textContent = '등록 중';
+    try{
+      const list = await fetchLeaderboard();
+      const entry = {
+        name,
+        totalRp: state.totalRpEarned || 0,
+        maxFloor: state.maxFloorEver || 0,
+        rebirths: state.rebirths || 0,
+        updatedAt: Date.now(),
+      };
+      const idx = list.findIndex(e=>e.name === name);
+      if(idx >= 0){
+        if(entry.totalRp >= list[idx].totalRp) list[idx] = entry;
+      } else {
+        list.push(entry);
+      }
+      list.sort((a,b)=> b.totalRp - a.totalRp);
+      const trimmed = list.slice(0,50);
+      await AppStorage.set(LEADERBOARD_KEY, JSON.stringify(trimmed), true);
+      renderLeaderboard(trimmed);
+      updateMySummary();
+      save();
+    }catch(e){
+      el.rankEmptyNote.textContent = '랭킹 등록에 실패했어요. 네트워크 상태를 확인해주세요.';
+      el.rankEmptyNote.style.display = 'block';
+    }finally{
+      rankBusy = false;
+      el.submitRankBtn.disabled = false;
+      el.submitRankBtn.textContent = '등록';
+    }
+  }
+  el.submitRankBtn.addEventListener('click', submitScore);
+
+
+  let saveTimer = null;
+  let storageAvailable = true;
+  let storageWarned = false;
+  function showStorageWarning(){
+    if(storageWarned) return;
+    storageWarned = true;
+    el.footerNote.textContent = '⚠️ 서버 저장을 사용할 수 없어요. 이 창을 새로고침하면 진행 상황이 초기화됩니다.';
+  }
+  function flashSaved(){
+    if(storageWarned) return;
+    const t = new Date();
+    const hh = String(t.getHours()).padStart(2,'0');
+    const mm = String(t.getMinutes()).padStart(2,'0');
+    el.footerNote.textContent = (hasCloudStorage ? '서버에 저장됨 · ' : '이 기기에 저장됨 · ') + hh + ':' + mm;
+  }
+  function save(){
+    if(!storageAvailable) return;
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(async ()=>{
+      try{
+        await AppStorage.set('lifegame_save', JSON.stringify(state));
+        flashSaved();
+      }catch(e){
+        storageAvailable = false;
+        showStorageWarning();
+        console.warn('저장 기능을 사용할 수 없어 이후 저장을 건너뜁니다.', e);
+      }
+    }, 400);
+  }
+  async function load(){
+    try{
+      const res = await AppStorage.get('lifegame_save');
+      if(res && res.value){
+        const loaded = JSON.parse(res.value);
+        state = Object.assign(state, loaded);
+        state.goldUpg = Object.assign({atk:0,atkspeed:0,movespeed:0,crit:0,critdmg:0}, loaded.goldUpg||{});
+        state.pets = Object.assign({dog:0,cat:0,owl:0,dragon:0}, loaded.pets||{});
+        state.rpUpg = Object.assign({ratk:0,ratkspeed:0,rmove:0,rcrit:0,rcritdmg:0}, loaded.rpUpg||{});
+      }
+    }catch(e){
+      // 저장된 데이터가 아직 없는 새 게임인 경우. AppStorage가 localStorage로 폴백되므로
+      // 이 앱(PWA/APK) 환경에서는 별도 경고 없이 새 게임으로 시작한다.
+    }
+    if(el.nicknameInput) el.nicknameInput.value = state.nickname || '';
+  }
+
+  // ---------- 초기화 ----------
+  (async function init(){
+    await Promise.all([load(), loadImageManifest()]);
+    if(state.monsterMaxHp <= 0 || state.monsterHp === undefined){
+      state.monsterMaxHp = monsterHpFor(state.floor);
+      state.monsterHp = state.monsterMaxHp;
+    }
+    if(!hasCloudStorage && el.rankLocalNote) el.rankLocalNote.style.display = 'block';
+    renderAll();
+    lastTick = performance.now();
+    requestAnimationFrame(tick);
+    setInterval(save, 5000);
+  })();
+
+})();
+</script>
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){ /* 오프라인 캐시 없이도 게임은 동작함 */ });
+    });
+  }
+</script>
+</body>
+</html>

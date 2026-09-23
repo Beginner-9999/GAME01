@@ -1,0 +1,15 @@
+manifest.json — "이 앱은 무엇인가"를 정의하는 신분증
+
+브라우저와 안드로이드/iOS가 이 파일을 읽고 "홈 화면에 설치할 때 어떻게 보여줄지"를 결정해요.
+
+필드	역할
+name, short_name	앱 전체 이름 / 홈 화면 아이콘 밑에 표시될 짧은 이름
+id	앱의 고유 식별자. start_url이 나중에 바뀌어도 "같은 앱"으로 인식되게 함
+start_url	앱 아이콘을 눌렀을 때 열리는 진입 주소
+scope	이 앱이 관리하는 URL 범위 (이 범위를 벗어나면 일반 브라우저 화면으로 전환)
+display / display_override	standalone이면 브라우저 주소창 없이 실행. fullscreen까지 시도해보고 안 되면 standalone으로 자동 대체
+background_color / theme_color	앱 실행 중 스플래시 화면 배경색, 상태바 색상
+orientation	화면 방향 고정 (여기선 portrait = 세로 고정)
+icons	홈 화면 아이콘, 앱 전환기 아이콘 등에 쓰일 이미지들. purpose: "maskable"은 안드로이드가 원형/둥근사각형 등으로 잘라도 안 어색하게 여백을 준 전용 아이콘
+
+즉 PWABuilder가 APK를 만들 때도, 안드로이드가 "이 앱을 어떻게 실행할지" 결정할 때도 이 파일을 기준으로 삼습니다. 지난번 겪으셨던 "주소창이 안 사라지는" 문제와도 연결되는 파일이에요.

@@ -15,3 +15,8 @@ git remote add origin "위에 빨간 네모 친 본인의 깃 url 주소"
 //내 저장소 <-> 깃허브 연결
 git pull origin master
 // 깃허브에서 받아오기
+
+https://beginner-9999.github.io/GAME01/pwa
+
+endearing-croissant-82bdb0.netlify.app
+https://endearing-croissant-82bdb0.netlify.app/

@@ -47,3 +47,53 @@ https://내도메인/.well-known/assetlinks.json
 ## 참고
 - `index.html`은 기존 게임 로직을 그대로 유지했고, PWA 관련 태그(`<link rel="manifest">`, 아이콘, 서비스워커 등록 스크립트)와 노치 대응 안전영역 패딩만 추가했습니다.
 - 게임 저장/랭킹 기능(`window.storage`)은 Claude 아티팩트 환경 전용 API라 이 독립 패키지에서는 동작하지 않습니다. APK로 배포할 계획이라면 저장은 `localStorage`로, 랭킹은 별도의 백엔드(Firebase 등)로 바꾸는 작업이 필요합니다. 원하시면 이 부분도 도와드릴게요.
+
+## 캐릭터/몬스터 이미지를 외부에서 불러와 쓰기
+
+`index.html`의 `<script>` 안, `RP_UPGRADES` 바로 아래에 이미지 연동 설정 블록이 있습니다.
+
+```js
+const CHARACTER_IMAGES = {
+  // 0: 'https://예시.com/characters/baby.png',   // 아기
+  // 1: 'https://예시.com/characters/boy.png',    // 소년
+  // ...
+};
+const MONSTER_IMAGES = {
+  // '젖병': 'https://예시.com/monsters/bottle.png',
+};
+const PET_IMAGES = {
+  // dog: 'https://예시.com/pets/dog.png',
+};
+```
+
+- `CHARACTER_IMAGES`의 key는 인생 스테이지 순서(0=아기 ~ 5=할아버지)
+- `MONSTER_IMAGES`의 key는 몬스터 이름 문자열 (예: `'젖병'`, `'상사'`)과 정확히 일치해야 함
+- `PET_IMAGES`의 key는 펫 id (`dog`, `cat`, `owl`, `dragon`)
+- 값에 이미지 URL을 넣으면 그 즉시 이모지 대신 이미지가 사용되고, **비워두거나 링크가 깨지면 자동으로 이모지로 되돌아가서** 게임이 깨지지 않습니다.
+
+### 이미지 규격
+| 항목 | 권장값 |
+|---|---|
+| 형식 | PNG(투명 배경) 또는 WebP |
+| 크기 | 512×512px 정사각형 |
+| 여백 | 캐릭터/몬스터를 중앙에 두고 가장자리 10~15% 여백 확보 |
+| 용량 | 200KB 이하 (모바일 로딩 속도) |
+
+화면에는 CSS가 자동으로 축소해서 보여주므로 원본은 고해상도로 준비해도 됩니다.
+
+### 이미지를 어디에 올릴지
+URL만 접근 가능하면 어디든 상관없습니다.
+- 이 PWA와 같은 사이트에 `assets/characters/`, `assets/monsters/` 폴더를 만들어 함께 배포 (가장 안정적, CORS 문제 없음)
+- GitHub raw 링크, Cloudinary, imgur 등 외부 이미지 호스팅
+
+### (선택) 코드 수정 없이 이미지만 나중에 교체하고 싶다면
+`IMAGE_MANIFEST_URL`에 아래 형식의 JSON을 반환하는 주소를 넣어두면, 게임을 켤 때마다 자동으로 불러와 위 세 객체에 병합됩니다. 이후 이미지를 바꾸고 싶을 땐 이 JSON 파일만 갱신하면 되고, `index.html`을 다시 배포할 필요가 없습니다.
+
+```json
+{
+  "characters": { "0": "https://.../baby.png" },
+  "monsters":   { "젖병": "https://.../bottle.png" },
+  "pets":       { "dog": "https://.../dog.png" }
+}
+```
+

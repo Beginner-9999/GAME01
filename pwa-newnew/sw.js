@@ -1,12 +1,7 @@
-const CACHE_NAME = 'lifegame-cache-v3';
+const CACHE_NAME = 'lifegame-cache-v1';
 const ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './config.js',
-  './data.js',
-  './storage.js',
-  './app.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -31,15 +26,6 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-
-  // /api/* 는 항상 서버 데이터를 우선한다 (설정/저장/랭킹은 캐시보다 최신값이 중요).
-  if (event.request.url.indexOf('/api/') !== -1) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const network = fetch(event.request)

@@ -6,6 +6,22 @@
 (function () {
   "use strict";
 
+  // ============================================================
+  // 실제 표시 가능한 화면 높이를 JS로 직접 측정해 --app-height로 반영
+  // (모바일 브라우저/TWA에서 100vh가 실제 화면보다 크게 잡혀
+  //  하단 리스트/네비게이션이 잘려 보이는 문제를 근본적으로 해결)
+  // ============================================================
+  function setAppHeight() {
+    const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', setAppHeight);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight);
+  }
+
   const { TIERS, GOLD_UPGRADES, PET_DEFS, RP_UPGRADES } = window.GAME_DATA;
   let cfg = window.DEFAULT_CONFIG; // loadGameConfig() 완료 전 임시 기본값
 

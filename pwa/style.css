@@ -28,8 +28,9 @@ body{
 
 /* ---------- 앱 셸: 헤더/게임뷰는 고정, 탭 콘텐츠만 스크롤 ---------- */
 #appRoot{
-  height:100vh;
-  height:100dvh;
+  height:100vh;                     /* 1순위 fallback: 구형 브라우저 */
+  height:100dvh;                    /* 2순위 fallback: 동적 뷰포트 단위 지원 브라우저 */
+  height:var(--app-height, 100dvh); /* 3순위(최우선): JS로 직접 측정한 실제 화면 높이 */
   max-width:480px;
   margin:0 auto;
   display:flex;

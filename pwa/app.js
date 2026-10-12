@@ -6,22 +6,6 @@
 (function () {
   "use strict";
 
-  // ============================================================
-  // 실제 표시 가능한 화면 높이를 JS로 직접 측정해 --app-height로 반영
-  // (모바일 브라우저/TWA에서 100vh가 실제 화면보다 크게 잡혀
-  //  하단 리스트/네비게이션이 잘려 보이는 문제를 근본적으로 해결)
-  // ============================================================
-  function setAppHeight() {
-    const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-    document.documentElement.style.setProperty('--app-height', h + 'px');
-  }
-  setAppHeight();
-  window.addEventListener('resize', setAppHeight);
-  window.addEventListener('orientationchange', setAppHeight);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', setAppHeight);
-  }
-
   const { TIERS, GOLD_UPGRADES, PET_DEFS, RP_UPGRADES } = window.GAME_DATA;
   let cfg = window.DEFAULT_CONFIG; // loadGameConfig() 완료 전 임시 기본값
 
@@ -36,6 +20,7 @@
   let isDead = false;
   let atkAccumulator = 0;
   let lastTick = performance.now();
+  window.__lifegameState = state; // auth.js가 회원가입 시 현재 진행 상황을 같이 올리기 위해 참조
 
   // ---------- 유틸 ----------
   function costFor(base, mult, level) { return Math.ceil(base * Math.pow(mult, level)); }
@@ -148,6 +133,7 @@
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2200);
   }
+  window.showToast = showToast; // auth.js에서도 같은 토스트 UI를 재사용
 
   // ---------- 렌더 ----------
   function renderTopBar() {
@@ -196,7 +182,7 @@
 
     const totalDps = s.atk * s.atkSpeed + s.petDps;
     const timeToKill = state.monsterHp > 0 ? state.monsterHp / Math.max(0.01, totalDps) : 0;
-    el.recommendBanner.classList.toggle('show', timeToKill > 25 && state.floor > 3);
+	el.recommendBanner.classList.toggle('show', false);
 
     el.rpGainPreview.textContent = rpGainFor(state.floor) + ' RP';
   }

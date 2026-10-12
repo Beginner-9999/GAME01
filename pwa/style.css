@@ -28,9 +28,8 @@ body{
 
 /* ---------- 앱 셸: 헤더/게임뷰는 고정, 탭 콘텐츠만 스크롤 ---------- */
 #appRoot{
-  height:100vh;                     /* 1순위 fallback: 구형 브라우저 */
-  height:100dvh;                    /* 2순위 fallback: 동적 뷰포트 단위 지원 브라우저 */
-  height:var(--app-height, 100dvh); /* 3순위(최우선): JS로 직접 측정한 실제 화면 높이 */
+  height:100vh;
+  height:100dvh;
   max-width:480px;
   margin:0 auto;
   display:flex;
@@ -228,6 +227,13 @@ body[data-stage="2"] .rank-input-row input{ background:rgba(255,255,255,0.85); }
 .rank-input-row button{ min-width:64px; }
 .rank-my-summary{ font-size:11px; opacity:0.7; margin-top:8px; }
 .rank-local-note{ font-size:10px; opacity:0.55; margin-top:6px; }
+
+.auth-input{
+  display:block; width:100%; padding:9px 10px; border-radius:10px;
+  border:1px solid rgba(0,0,0,0.12); font-size:13px;
+  background:rgba(255,255,255,0.6); color:#2a2a2a; margin-bottom:8px;
+}
+body[data-stage="2"] .auth-input{ background:rgba(255,255,255,0.85); }
 .rank-list-header{
   display:grid; grid-template-columns:36px 1fr 64px 56px;
   font-size:10px; font-weight:700; opacity:0.5; padding:0 12px; margin-bottom:6px;

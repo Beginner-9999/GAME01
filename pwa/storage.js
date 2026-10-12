@@ -1,32 +1,65 @@
 // ============================================================
 // storage.js
-// nginx가 서빙하는 이 페이지와 API가 같은 도메인/포트(8080)에서
-// 동작하므로, 상대경로(/api/...)로 그대로 fetch하면 된다
-// (CORS 설정이 필요 없다).
+// 서버 API와 통신하는 데이터 계층. 로그인 여부와 무관하게 app.js는
+// 항상 loadSave/saveGame/fetchLeaderboard/submitLeaderboardEntry만
+// 호출하면 되고, "지금 게스트인지 계정으로 로그인했는지"는 이 파일이
+// 알아서 처리한다 (계정 모드면 요청에 인증 토큰을 실어 보낸다).
 //
-// app.js가 기대하는 인터페이스(hasCloudStorage/loadSave/saveGame/
-// fetchLeaderboard/submitLeaderboardEntry)는 그대로 유지하면서
-// 내부 구현만 "진짜 서버 API 호출"로 바꿨다.
+// 계정 관련 기능(register/login/loginWithGoogle/logout/getIdentity)은
+// auth.js(로그인 화면 담당)에서만 사용한다.
 // ============================================================
 (function () {
   "use strict";
 
-  const UID_KEY = "lifegame_uid";
+  const GUEST_UID_KEY = "lifegame_uid";
+  const ACCOUNT_KEY = "lifegame_account"; // {uid, token, nickname}
   const LOCAL_BACKUP_KEY = "lifegame_local_backup"; // 서버 저장 실패 시 최후의 안전망
 
-  function getUid() {
-    let uid = localStorage.getItem(UID_KEY);
+  function getGuestUid() {
+    let uid = localStorage.getItem(GUEST_UID_KEY);
     if (!uid) {
       uid = "u_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 10);
-      localStorage.setItem(UID_KEY, uid);
+      localStorage.setItem(GUEST_UID_KEY, uid);
     }
     return uid;
   }
-  const uid = getUid();
 
-  async function loadSave() {
+  function getAccount() {
     try {
-      const res = await fetch("/api/save/" + encodeURIComponent(uid));
+      const raw = localStorage.getItem(ACCOUNT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function setAccount(account) {
+    localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+  }
+  function clearAccount() {
+    localStorage.removeItem(ACCOUNT_KEY);
+  }
+
+  // 지금 이 기기가 "게스트"인지 "계정으로 로그인"했는지 + 그때 쓸 uid
+  function getIdentity() {
+    const account = getAccount();
+    if (account && account.uid && account.token) {
+      return { mode: "account", uid: account.uid, token: account.token, nickname: account.nickname };
+    }
+    return { mode: "guest", uid: getGuestUid(), token: null, nickname: null };
+  }
+
+  function authHeaders() {
+    const identity = getIdentity();
+    return identity.token ? { Authorization: "Bearer " + identity.token } : {};
+  }
+
+  // ---------- 저장 ----------
+  async function loadSave() {
+    const identity = getIdentity();
+    try {
+      const res = await fetch("/api/save/" + encodeURIComponent(identity.uid), {
+        headers: authHeaders(),
+      });
       if (res.ok) {
         const row = await res.json();
         if (row && row.state_json) return JSON.parse(row.state_json);
@@ -43,17 +76,18 @@
   }
 
   async function saveGame(state) {
-    // 서버가 죽어 있어도 진행 상황이 사라지지 않도록 로컬에도 항상 백업해둔다.
     try { localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(state)); } catch (e) {}
 
+    const identity = getIdentity();
     const res = await fetch("/api/save", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, nickname: state.nickname || "", state }),
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+      body: JSON.stringify({ uid: identity.uid, nickname: state.nickname || identity.nickname || "", state }),
     });
     if (!res.ok) throw new Error("save 요청 실패: " + res.status);
   }
 
+  // ---------- 랭킹 ----------
   function mapEntry(row) {
     return {
       name: row.nickname,
@@ -71,11 +105,12 @@
   }
 
   async function submitLeaderboardEntry(entry) {
+    const identity = getIdentity();
     const res = await fetch("/api/leaderboard", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
       body: JSON.stringify({
-        uid,
+        uid: identity.uid,
         nickname: entry.name,
         totalRp: entry.totalRp,
         maxFloor: entry.maxFloor,
@@ -86,11 +121,66 @@
     return fetchLeaderboard();
   }
 
+  // ---------- 계정 (닉네임+PIN / 구글) ----------
+  // 성공 시 로컬에 계정 정보를 저장한다. 화면 갱신(재로딩)은 호출한 쪽(auth.js)이 담당.
+  async function register(nickname, pin, currentState) {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nickname, pin, state: currentState }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "회원가입 실패");
+    setAccount({ uid: data.uid, token: data.token, nickname: data.nickname });
+    return data;
+  }
+
+  async function login(nickname, pin) {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nickname, pin }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "로그인 실패");
+    setAccount({ uid: data.uid, token: data.token, nickname: data.nickname });
+    return data;
+  }
+
+  // idToken은 Google Identity Services(client-side)에서 발급받은 ID 토큰을 그대로 넘기면 된다.
+  async function loginWithGoogle(idToken, currentState) {
+    const res = await fetch("/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, state: currentState }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "구글 로그인 실패");
+    setAccount({ uid: data.uid, token: data.token, nickname: data.nickname });
+    return data;
+  }
+
+  async function logout() {
+    const identity = getIdentity();
+    if (identity.token) {
+      try {
+        await fetch("/api/auth/logout", { method: "POST", headers: authHeaders() });
+      } catch (e) {}
+    }
+    clearAccount();
+  }
+
   window.GameStorage = {
-    hasCloudStorage: true, // 이 빌드는 항상 실 서버(API)를 기준으로 동작한다
+    hasCloudStorage: true,
     loadSave,
     saveGame,
     fetchLeaderboard,
     submitLeaderboardEntry,
+    // 계정
+    getIdentity,
+    register,
+    login,
+    loginWithGoogle,
+    logout,
   };
 })();

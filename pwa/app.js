@@ -19,6 +19,7 @@
   };
   let isDead = false;
   let atkAccumulator = 0;
+  let stageTimer = null; // 제한시간(stageTimeLimitMs) 안에 못 잡으면 이전 스테이지로 후퇴
   let lastTick = performance.now();
   window.__lifegameState = state; // auth.js가 회원가입 시 현재 진행 상황을 같이 올리기 위해 참조
 
@@ -399,6 +400,20 @@
     el.arena.classList.remove('sprint');
     updateWalkDur();
     setMonsterAnim('spawn-in', 300);
+
+    if (stageTimer) clearTimeout(stageTimer);
+    if (cfg.stageTimeLimitMs > 0) {
+      stageTimer = setTimeout(handleStageTimeout, cfg.stageTimeLimitMs);
+    }
+  }
+
+  // 제한시간 안에 몬스터를 못 잡으면 이전 스테이지로 한 칸 후퇴해서 재도전시킨다.
+  function handleStageTimeout() {
+    if (isDead) return; // 그 사이 잡았으면 타이머만 남아있는 것이니 무시
+    state.floor = Math.max(0, state.floor - 1);
+    showToast('⏱️ 시간 초과! 이전 스테이지로 후퇴했어요');
+    spawnMonster();
+    save();
   }
 
   function spawnFloatDamage(dmg, crit) {

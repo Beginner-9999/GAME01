@@ -76,15 +76,25 @@
   }
 
   async function saveGame(state) {
-    try { localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(state)); } catch (e) {}
+    // 항상 로컬 백업에 먼저 저장합니다.
+    try { 
+      localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(state)); 
+    } catch (e) {}
 
     const identity = getIdentity();
-    const res = await fetch("/api/save", {
-      method: "POST",
-      headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
-      body: JSON.stringify({ uid: identity.uid, nickname: state.nickname || identity.nickname || "", state }),
-    });
-    if (!res.ok) throw new Error("save 요청 실패: " + res.status);
+    try {
+      const res = await fetch("/api/save", {
+        method: "POST",
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+        body: JSON.stringify({ uid: identity.uid, nickname: state.nickname || identity.nickname || "", state }),
+      });
+      if (!res.ok) {
+        console.warn("서버 저장 실패, 로컬 백업만 유지됩니다: " + res.status);
+      }
+    } catch (e) {
+      // 서버와의 통신이 불가능할 경우(오프라인 등) 에러를 삼켜서 게임 진행이 멈추지 않게 합니다.[cite: 5]
+      console.warn("서버에 연결할 수 없어 로컬에만 저장합니다.", e);
+    }
   }
 
   // ---------- 랭킹 ----------

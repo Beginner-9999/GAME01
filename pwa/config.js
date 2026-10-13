@@ -19,7 +19,7 @@
   // 구조로 전환하면서 선형 성장(hpGrowthRate 등)을 복리 성장 공식으로 교체했다.
   const DEFAULT_CONFIG = {
     // 스테이지 구조
-    stagesPerLifeStage: 40,  // 난이도 1개 안에서 인생 단계 1개당 스테이지 수 (기존 tierLength 대체)
+    stagesPerLifeStage: 4,  // 난이도 1개 안에서 인생 단계 1개당 스테이지 수 (기존 tierLength 대체)
 
     // 몬스터 기준치 (난이도 Beginner · 인생단계 1번째 · 스테이지 1 기준, 일반 등급)
     hpBase: 120,

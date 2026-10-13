@@ -6,7 +6,7 @@
 (function () {
   "use strict";
 
-  const { TIERS, GOLD_UPGRADES, PET_DEFS, RP_UPGRADES } = window.GAME_DATA;
+  const { TIERS, DIFFICULTIES, GOLD_UPGRADES, PET_DEFS, RP_UPGRADES } = window.GAME_DATA;
   let cfg = window.DEFAULT_CONFIG; // loadGameConfig() 완료 전 임시 기본값
 
   // ---------- 상태 ----------
@@ -32,8 +32,65 @@
     while (v >= 1000 && u < units.length - 1) { v /= 1000; u++; }
     return v.toFixed(v < 10 ? 2 : (v < 100 ? 1 : 0)) + units[u];
   }
-  function getTierIndex(floor) { return Math.min(Math.floor(floor / cfg.tierLength), TIERS.length - 1); }
-  function getMonster(floor) { const t = TIERS[getTierIndex(floor)]; return t.monsters[floor % t.monsters.length]; }
+  // ---------- 난이도 × 인생단계 × 스테이지 진행 구조 ----------
+  // floor는 0부터 시작하는 절대 스테이지 번호. 난이도 하나당
+  // (인생단계 5개 × stagesPerLifeStage)만큼의 floor를 차지한다.
+  function totalStagesPerDifficulty() { return TIERS.length * cfg.stagesPerLifeStage; }
+  function getDifficultyIndex(floor) {
+    return Math.min(Math.floor(floor / totalStagesPerDifficulty()), DIFFICULTIES.length - 1);
+  }
+  function getTierIndex(floor) {
+    return Math.floor((floor % totalStagesPerDifficulty()) / cfg.stagesPerLifeStage);
+  }
+  function getStageInTier(floor) { return floor % cfg.stagesPerLifeStage; } // 0 ~ stagesPerLifeStage-1
+
+  // tier.monsters(보스 포함)를 stagesPerLifeStage칸짜리 스케줄로 바꾼다.
+  // 보스가 여러 마리인 구간(성인: 대학·취업 던전 / 회사 프로젝트 던전)은
+  // 구간 수만큼 균등하게 나눠서 각 구간 마지막 칸에 보스를 배치한다.
+  const _scheduleCache = new Map();
+  function getStageSchedule(tier) {
+    if (_scheduleCache.has(tier)) return _scheduleCache.get(tier);
+
+    const segments = [];
+    let seg = [];
+    tier.monsters.forEach((m) => {
+      seg.push(m);
+      if (m.grade === 'boss') { segments.push(seg); seg = []; }
+    });
+    if (seg.length) segments.push(seg); // 보스 없이 끝나는 경우를 위한 안전장치
+
+    const schedule = [];
+    const segLen = Math.floor(cfg.stagesPerLifeStage / segments.length);
+    segments.forEach((segment, i) => {
+      const normals = segment.filter((m) => m.grade !== 'boss');
+      const boss = segment.find((m) => m.grade === 'boss');
+      const len = (i === segments.length - 1) ? cfg.stagesPerLifeStage - schedule.length : segLen;
+      for (let s = 0; s < len; s++) {
+        schedule.push((s === len - 1 && boss) ? boss : normals[s % normals.length]);
+      }
+    });
+
+    _scheduleCache.set(tier, schedule);
+    return schedule;
+  }
+  function getMonster(floor) {
+    const tier = TIERS[getTierIndex(floor)];
+    return getStageSchedule(tier)[getStageInTier(floor)];
+  }
+  function gradeMult(m) {
+    if (m.grade === 'boss') return { hp: cfg.bossHpMult, atk: cfg.bossAtkMult };
+    if (m.grade === 'elite') return { hp: cfg.eliteHpMult, atk: cfg.eliteAtkMult };
+    return { hp: 1, atk: 1 };
+  }
+  // 스테이지(복리) × 난이도(이전 난이도 마지막 스테이지 대비 +20%) 배율.
+  // growthRate에 stageHpGrowth/stageAtkGrowth를 넣어 HP/공격력 각각 계산한다.
+  function stageAndDifficultyMult(floor, growthRate) {
+    const stageInTier = getStageInTier(floor);
+    const diffIdx = getDifficultyIndex(floor);
+    const finalStageMult = Math.pow(growthRate, cfg.stagesPerLifeStage - 1);
+    const difficultyMult = Math.pow(finalStageMult * cfg.difficultyJumpBonus, diffIdx);
+    return Math.pow(growthRate, stageInTier) * difficultyMult;
+  }
 
   function computeStats() {
     const g = state.goldUpg, p = state.pets, r = state.rpUpg;
@@ -49,8 +106,22 @@
     return { atk, atkSpeed, spawnDelay, critChance, critDamage, petDps, goldMult, hasAutoAttack: g.autoAttack > 0 };
   }
 
-  function monsterHpFor(floor) { return Math.ceil(cfg.hpBase * Math.pow(cfg.hpGrowthRate, floor)); }
-  function goldRewardFor(floor, goldMult) { return Math.ceil((cfg.goldBase + floor * cfg.goldPerFloor) * goldMult * cfg.goldMultiplier); }
+  function monsterHpFor(floor) {
+    const grade = gradeMult(getMonster(floor));
+    return Math.ceil(cfg.hpBase * stageAndDifficultyMult(floor, cfg.stageHpGrowth) * grade.hp);
+  }
+  // 지금은 몬스터가 반격하지 않는 클리커 구조라 전투에 쓰이진 않지만,
+  // 기획서의 "몬스터 공격력" 수치를 그대로 보존해둔다 (추후 반격 패턴 추가 대비).
+  function monsterAtkFor(floor) {
+    const grade = gradeMult(getMonster(floor));
+    return Math.ceil(cfg.atkBase * stageAndDifficultyMult(floor, cfg.stageAtkGrowth) * grade.atk);
+  }
+  function goldRewardFor(floor, goldMult) {
+    const stageInTier = getStageInTier(floor);
+    const diffIdx = getDifficultyIndex(floor);
+    const mult = Math.pow(cfg.goldStageGrowth, stageInTier) * Math.pow(cfg.goldDifficultyGrowth, diffIdx);
+    return Math.ceil(cfg.goldBase * mult * goldMult * cfg.goldMultiplier);
+  }
   function rpGainFor(floor) {
     const base = Math.max(1, Math.floor(Math.pow(floor, cfg.rpGainExponent) / cfg.rpGainDivisor));
     const mult = 1 + (state.rpUpg.rpBoost || 0) * 0.1;
@@ -144,13 +215,14 @@
     el.body.setAttribute('data-stage', String(tierIdx));
     el.stageName.textContent = tier.name;
     el.stageSub.textContent = tier.sub;
-    el.floor.textContent = '층 ' + (state.floor + 1);
+    const diffIdx = getDifficultyIndex(state.floor);
+    el.floor.textContent = DIFFICULTIES[diffIdx] + ' · ' + (getStageInTier(state.floor) + 1) + '/' + cfg.stagesPerLifeStage;
     el.player.textContent = tier.player;
     if (tierIdx !== lastTierIdx) {
       buildParallaxLayers(tierIdx);
       lastTierIdx = tierIdx;
     }
-    const progressInTier = ((state.floor % cfg.tierLength) / cfg.tierLength) * 100;
+    const progressInTier = (getStageInTier(state.floor) / cfg.stagesPerLifeStage) * 100;
     el.roadFill.style.width = progressInTier + '%';
   }
 
@@ -182,7 +254,7 @@
 
     const totalDps = s.atk * s.atkSpeed + s.petDps;
     const timeToKill = state.monsterHp > 0 ? state.monsterHp / Math.max(0.01, totalDps) : 0;
-	el.recommendBanner.classList.toggle('show', false);
+    el.recommendBanner.classList.toggle('show', false); // 환생 추천 배너는 사용자 요청으로 비활성화
 
     el.rpGainPreview.textContent = rpGainFor(state.floor) + ' RP';
   }
